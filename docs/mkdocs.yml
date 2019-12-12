@@ -1,0 +1,17 @@
+site_name: Shape Analysis Plugin
+site_description: A Napari plugin to perform shape/ROI analysis
+site_author: Cudmore Lab
+
+repo_name: Shape Analysis Plugin
+repo_url: https://github.com/cudmore/ShapeAnalysisPlugin
+edit_uri: ""
+
+theme:
+    name: material
+
+nav:
+    - Home: index.md
+    - Installation: install.md
+    - Troubleshooting: troubleshooting.md
+    - Interface: interface.md
+
