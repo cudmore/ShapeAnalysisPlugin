@@ -25,19 +25,23 @@ We are developing this code in the open but the project is still in an early alp
 git clone https://github.com/napari/napari.git
 ```
 
-### 2) Install on your computer
+### 2) Install required Python packages
 
 Assuming you have `Python 3.7.x`, `pip`, and `venv`
 
 ```
 cd ShapeAnalysisPlugin
+
+python3 -m venv env # create a virtual environment in folder 'env'
+source env/bin/activate # activate the virtual environment
+
 pip install -r requirements.txt
 ```
 
 ### 3) Run
 
 ```
-cd ShapeAnalysisPlugin
+cd shapeanalysisplugin
 python3 ShapeAnalysisPlugin.py
 ```
 

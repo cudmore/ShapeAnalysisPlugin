@@ -10,12 +10,13 @@ This is development information for the Shape Analysis Plugin. One big caveat is
 
  - Convert all PyQtGraph code to VisPy and then remove dependency on PyQtGraph (e.g. requirements.txt).
  - Work on doc strings so we can provide a concise API on readthedocs
-
+ - Write some basic tests (follow good Python practice)
  
 ### Github repository
 
  - Implement continuous integration with Travis
- - Create a setup.py to make installation easier.
+ - Create a setup.py to make installation easier, so users can do 'pip install .'
+ - Make the plugin a pypy installable package so users can do 'pip install shapeanalysisplugin'
 
 ### Documentation
 
