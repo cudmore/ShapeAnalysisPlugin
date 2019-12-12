@@ -1,0 +1,12 @@
+# requirements file for Shape Analysis Plugin
+# use this file with pip
+# pip install -r requirements.txt
+
+
+# temporary until we switch
+pyqtgraph
+pyqt5
+
+h5py
+
+napari #most of what we need is already required by napari
