@@ -10,7 +10,7 @@ We are developing this code in the open but the project is still in an early alp
 
 ## Screenshot
 
-![plugin-screenshot-gif](img/shape-analysis-plugin.gif)
+![plugin-screenshot-gif](docs/docs/img/shape-analysis-plugin.gif)
 
 
 ## How to install
@@ -22,7 +22,7 @@ We are developing this code in the open but the project is still in an early alp
 **Option 2**, Use git to clone the repository with
 
 ```
-git clone https://github.com/napari/napari.git
+git clone https://github.com/cudmore/ShapeAnalysisPlugin.git
 ```
 
 ### 2) Install required Python packages
@@ -47,7 +47,7 @@ python3 ShapeAnalysisPlugin.py
 
 ## Interface
 
-The Shape Analysis Plugin uses keyboard commands for its user interaction. We will improve this in the near future. 
+The Shape Analysis Plugin uses keyboard commands for its user interaction. We will improve this in the near future.
 
 ```
 l: Create new line shape (l as in Larry)
