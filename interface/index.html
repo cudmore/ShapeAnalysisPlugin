@@ -40,7 +40,7 @@
     
     
       
-        <title>Troubleshooting - Shape Analysis Plugin</title>
+        <title>Interface - Shape Analysis Plugin</title>
       
     
     
@@ -95,10 +95,6 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#installation" tabindex="1" class="md-skip">
-        Skip to content
-      </a>
-    
     
       <header class="md-header" data-md-component="header">
   <nav class="md-header-nav md-grid">
@@ -121,7 +117,7 @@
                 Shape Analysis Plugin
               </span>
               <span class="md-header-nav__topic">
-                Troubleshooting
+                Interface
               </span>
             
           
@@ -260,6 +256,18 @@
       
       
 
+
+  <li class="md-nav__item">
+    <a href="../troubleshooting/" title="Troubleshooting" class="md-nav__link">
+      Troubleshooting
+    </a>
+  </li>
+
+    
+      
+      
+      
+
   
 
 
@@ -268,76 +276,10 @@
     <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
     
     
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Troubleshooting
-      </label>
-    
-    <a href="./" title="Troubleshooting" class="md-nav__link md-nav__link--active">
-      Troubleshooting
-    </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#installation" title="Installation" class="md-nav__link">
-    Installation
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#install-python" title="Install Python" class="md-nav__link">
-    Install Python
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-pip" title="Install pip" class="md-nav__link">
-    Install pip
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-virtialenv-env" title="Install VirtialEnv (env)" class="md-nav__link">
-    Install VirtialEnv (env)
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
-  </li>
-
-    
-      
-      
-      
-
-
-  <li class="md-nav__item">
-    <a href="../interface/" title="Interface" class="md-nav__link">
+    <a href="./" title="Interface" class="md-nav__link md-nav__link--active">
       Interface
     </a>
+    
   </li>
 
     
@@ -348,86 +290,22 @@
               </div>
             
             
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-<nav class="md-nav md-nav--secondary">
-  
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#installation" title="Installation" class="md-nav__link">
-    Installation
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#install-python" title="Install Python" class="md-nav__link">
-    Install Python
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-pip" title="Install pip" class="md-nav__link">
-    Install pip
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-virtialenv-env" title="Install VirtialEnv (env)" class="md-nav__link">
-    Install VirtialEnv (env)
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-                  </div>
-                </div>
-              </div>
-            
           
           <div class="md-content">
             <article class="md-content__inner md-typeset">
               
                 
                 
-                  <h1>Troubleshooting</h1>
+                  <h1>Interface</h1>
                 
-                <h2 id="installation">Installation</h2>
-<p>We assume you have some basics installed on your computer. These include:</p>
-<ul>
-<li>Python</li>
-<li>pip</li>
-<li>virtual environment.</li>
-</ul>
-<p>Once this is all done, you can proceed with the general install instructions.</p>
-<h3 id="install-python">Install Python</h3>
-<p><a href="https://www.python.org/downloads/">downloaded</a> and then follow the instructions for installation.</p>
-<h3 id="install-pip">Install pip</h3>
-<pre><code>python3 -m pip install --user --upgrade pip
-</code></pre>
-
-<h3 id="install-virtialenv-env">Install VirtialEnv (env)</h3>
-<pre><code>python3 -m pip install --user virtualenv
+                <p>The Shape Analysis Plugin uses keyboard commands for its user interaction. We will improve this in the near future. </p>
+<pre><code>l: Create new line shape (l as in Larry)
+r: Create new rectangle shape
+Delete: Delete selected shape
+u: Update analysis on selected shape
+Command+Shift+L: Load h5f file (prompt user for file)
+Command+l: Load default h5f file (each .tif has corresponding h5f file)
+Command+s: Save default h5f file (each .tif has corresponding h5f file)
 </code></pre>
                 
                   
@@ -449,7 +327,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../install/" title="Installation" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../troubleshooting/" title="Troubleshooting" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -458,25 +336,11 @@
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Installation
+                Troubleshooting
               </span>
             </div>
           </a>
         
-        
-          <a href="../interface/" title="Interface" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
-            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
-              <span class="md-flex__ellipsis">
-                <span class="md-footer-nav__direction">
-                  Next
-                </span>
-                Interface
-              </span>
-            </div>
-            <div class="md-flex__cell md-flex__cell--shrink">
-              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
-            </div>
-          </a>
         
       </nav>
     </div>
