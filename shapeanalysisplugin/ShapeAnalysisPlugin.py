@@ -125,7 +125,6 @@ class ShapeAnalysisPlugin:
 			print('l: Create new line shape')
 			print('r: Create new rectangle shape')
 			print('Delete: Delete selected shape')
-			print('d: Load shapes from h5f file')
 			print('u: Update analysis on selected shape')
 			print('Command+Shift+L: Load h5f file (prompt user for file)')
 			print('Command+l: Load default h5f file (each .tif has corresponding h5f file)')

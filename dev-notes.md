@@ -1,5 +1,34 @@
 This is development information for the Shape Analysis Plugin. One big caveat is we are developing on macOS, your mileage will vary if you are using Microsoft Windows. Don't worry, we will provide recipes for that shortly.
 
+# To Do
+
+### Interface
+
+ - Add a tree view list of shapes/ROIs in an image.
+
+### Code
+
+ - Convert all PyQtGraph code to VisPy and then remove dependency on PyQtGraph (e.g. requirements.txt).
+ - Work on doc strings so we can provide a concise API on readthedocs
+
+ 
+### Github repository
+
+ - Implement continuous integration with Travis
+ - Create a setup.py to make installation easier.
+
+### Documentation
+
+ - [x] Create a github pages web page using MkDocs
+
+# To deploy mkdocs onto GitHub
+
+```
+cd ShapeAnalysisPlugin/docs
+mkdocs gh-deploy
+```
+
+
 # Install
 
 ## Python 3.7.x
