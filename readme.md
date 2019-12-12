@@ -8,6 +8,10 @@ If you are an end user, please see our [user friendly documentation](http://blog
 
 We are developing this code in the open but the project is still in an early alpha stage and there will be breaking changes with each release. Please follow along as we develop this exciting new software and feel free to try it out and contribute your ideas and if possible your own code.
 
+## Screenshot
+
+![plugin-screenshot-gif](img/shape-analysis-plugin.gif)
+
 
 ## How to install
 
