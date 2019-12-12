@@ -1,0 +1,6 @@
+# Author: Robert Cudmore
+# Date: 20191212
+
+source env/bin/activate
+
+python3 shapeanalysisplugin/ShapeAnalysisPlugin.py
