@@ -35,12 +35,44 @@ import h5py
 import scipy.ndimage
 
 import pyqtgraph as pg
+'''
 from pyqtgraph.Qt import QtCore, QtGui
+'''
 
 import napari
 
+from PyQt5 import QtGui, QtSql, QtCore, QtWidgets
+
+import vispy.app
+import vispy.plot as vp
+
 #import bimpy # needed for bAnalysis2.py, the backend analysis for shapes
 from ShapeAnalysis import ShapeAnalysis
+
+class myVisPyWindow(QtWidgets.QWidget):
+	def __init__(self):
+		super(myVisPyWindow, self).__init__()
+		self.buildVisPyInterface()
+
+	def buildVisPyInterface(self):
+
+		# vispy
+		#canvas = vispy.app.Canvas()
+		fig = vp.Fig(size=(800, 600))
+
+		data = np.random.rand(100, 2)
+		self.linePlotWidget = fig[0, 0] # this creates a PlotWidget
+		self.linePlot = self.linePlotWidget.plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
+		#self.linePlot = fig[0, 0].plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
+
+		self.myHBoxLayout = QtWidgets.QHBoxLayout(self)
+
+		self.myHBoxLayout.addWidget(QtWidgets.QPushButton('A Button'))
+		self.myHBoxLayout.addWidget(fig.native)
+
+		self.show()
+
+		print('buildVisPyInterface() done')
 
 class ShapeAnalysisPlugin:
 	"""
@@ -49,7 +81,8 @@ class ShapeAnalysisPlugin:
 	uses ShapeAnalysis for back end analysis
 	"""
 	#def __init__(self, napariViewer, path=None, myStack=None):
-	def __init__(self, napariViewer, imageLayer=None, imagePath=None):
+	#def __init__(self, napariViewer, imageLayer=None, imagePath=None):
+	def __init__(self, imagePath=None):
 		"""
 		napariViewer: existing napari viewer
 		imageLayer: napari image layer to use as image
@@ -58,10 +91,28 @@ class ShapeAnalysisPlugin:
 		Assuming:
 			imageLayer.data is (slices, rows, col)
 		"""
+
+		# start pulled from main
+		title = ''
+		if imagePath is not None:
+			title = os.path.basename(imagePath)
+
+		self.napariViewer = napari.Viewer(title=title)
+
+		# add image as layer
+		colormap = 'green'
+		scale = (1,1,1) #(1,0.2,0.2)
+		self.myImageLayer = self.napariViewer.add_image(
+			#self.myStack.stack[0,:,:,:],
+			path = path,
+			colormap=colormap,
+			scale=scale)
+		# end pulled from main
+
 		self.sliceNum = 0
 
-		self.napariViewer = napariViewer
-		self.myImageLayer = imageLayer
+		#self.napariViewer = napariViewer
+		#self.myImageLayer = imageLayer
 		self.path = imagePath
 
 		self.filterImage() # filter the raw image for analysis
@@ -93,7 +144,8 @@ class ShapeAnalysisPlugin:
 		self.keyboardBindings() # map mouse down/drag to function calls
 
 		self.buildPyQtGraphInterface() # build second window to show results of shape analysis
-		self.buildVisPyInterface()
+		#self.buildVisPyInterface()
+		self.myVisPyWindow = myVisPyWindow()
 
 		self.load()
 
@@ -497,38 +549,17 @@ class ShapeAnalysisPlugin:
 		#self.updatePlots()
 
 	def buildVisPyInterface(self):
-		from PyQt5 import QtGui, QtSql, QtCore, QtWidgets
-
-		import vispy.app
-		import vispy.plot as vp
 
 		# vispy
 		#canvas = vispy.app.Canvas()
-		fig = vp.Fig(bgcolor='k', size=(800, 600), show=True)
-
-		fig.create_native()
+		fig = vp.Fig(size=(800, 600))
 
 		data = np.random.rand(100, 2)
+		'''
 		self.linePlotWidget = fig[0, 0] # this creates a PlotWidget
 		self.linePlot = self.linePlotWidget.plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
-
-		#self.linePlot._line.method = 'agg'
-		#self.linePlot.update_gl_state(depth_test=False)
-
 		'''
-		data = np.random.rand(100)
-		self.linePlot.set_data(data)
-		self.linePlot.update()
-		'''
-
-		#print('self.vpLineProfile.lines:', self.vpLineProfile.lines)
-
-		'''
-		self.fig[0, 0].plot(data=data)
-		self.fig[1, 0].plot(data=data)
-		self.fig[2, 0].plot(data=data)
-		self.fig[3, 0].plot(data=data)
-		'''
+		self.linePlot = fig[0, 0].plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
 
 		# qt
 		w = QtWidgets.QMainWindow()
@@ -536,12 +567,15 @@ class ShapeAnalysisPlugin:
 		w.setCentralWidget(widget)
 		widget.setLayout(QtWidgets.QHBoxLayout())
 
-		widget.layout().addWidget(QtWidgets.QPushButton())
-		widget.layout().addWidget(fig.native)
+		widget.layout().addWidget(QtWidgets.QPushButton('A Button'))
+		#widget.layout().addWidget(fig.native)
 		#widget.layout().addWidget(canvas.native)
 
 		w.show()
-		vispy.app.run()
+		#widget.show()
+		#vispy.app.run() # this does not return?
+
+		print('buildVisPyInterface() done')
 
 	def buildPyQtGraphInterface(self):
 		#
@@ -956,10 +990,14 @@ class ShapeAnalysisPlugin:
 			# see vispy InfiniteLineVisual to draw slice line
 
 			data = np.random.rand(100,2) + 100
-			self.linePlot.set_data(data)
-			#self.linePlot.update()
+			# todo: add a member function to myVisPyWindow
+			self.myVisPyWindow.linePlot.set_data(data)
 
-			#self.linePlotWidget.view.camera.set_range()
+			# already called by set_data
+			#self.myVisPyWindow.linePlot.update()
+
+			self.myVisPyWindow.linePlotWidget.view.camera.set_range()
+			#self.myVisPyWindow.linePlot.view.camera.set_range()
 
 		if (fit is not None):
 			pass
@@ -1006,8 +1044,11 @@ if __name__ == '__main__':
 		path = '/Users/cudmore/box/data/bImpy-Data/high-k-video/HighK-aligned-8bit-short.tif'
 		#path = '/Volumes/t3/20191105(Tie2Cre-GCaMP6f)/ISO_IN_500nM_8bit_cropped.tif'
 		#path = '/Volumes/t3/20191105(Tie2Cre-GCaMP6f)/ISO_IN_500nM_8bit.tif'
+
+		'''
 		filename = os.path.basename(path)
 		title = filename
+
 		viewer = napari.Viewer(title=title)
 
 		# add image as layer
@@ -1019,6 +1060,8 @@ if __name__ == '__main__':
 			colormap=colormap,
 			scale=scale)#,
 			#title=title)
+		'''
 
 		# run the plugin
-		ShapeAnalysisPlugin(viewer, imageLayer=myImageLayer, imagePath=path)
+		#ShapeAnalysisPlugin(viewer, imageLayer=myImageLayer, imagePath=path)
+		ShapeAnalysisPlugin(imagePath=path)
