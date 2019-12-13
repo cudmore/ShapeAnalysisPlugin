@@ -2,7 +2,7 @@ Welcome. This is the user documentation for the Napari shape analysis plugin.
 
 ## What it does and why it is great ...
 
- - Using the Napari viewer, any number of shapes/ROIs can be created directly on top of multi-dimensional images.
+ - Using the [Napari viewer][napari], any number of shapes/ROIs can be created directly on top of multi-dimensional images.
  - Shapes/ROIs are easily analyzed to extract parameters and plot the results.
  - Shapes/ROIs and their analysis can be saved and then loaded again.
  - Once shapes/ROIs are analyzed with the graphical user interface (GUI), additional analysis can be perfromed with super simple pYthon scripts.
@@ -19,10 +19,19 @@ On the right is the Shape Analysis Plugin interface with four plots. The top plo
 
 As the user drags the slider to scroll through image frames in the time-series, all the plots are updated. For the bottom three plots, the currently viwed image frame is denoted by a vertical white/yellow bar.
 
-<!-- 
+<!--
 
 **Details...** The image is a video recording of a [sinoatrial node][sinoatrial-node] artery with [GCaMP][gcamp] expressed in [endothelial cells][endothelial-cells]. Around frame 800 there is a spontaneous Ca++ event within the rectangular shape. Around frame 1300, we are applying high K+ to constrict the vessel. This can be seen as both a decrease in the diameter (second plot) accompanied by an increase in Ca++.
 
-**Why...** We are using this plugin to examine the response of arteries, both in their constriction and Ca++ signalling in different disease states including Alzheimer's disease, hypertension, diabetes, and stroke. 
+**Why...** We are using this plugin to examine the response of arteries, both in their constriction and Ca++ signalling in different disease states including Alzheimer's disease, hypertension, diabetes, and stroke.
+
+[sinoatrial-node]: https://en.wikipedia.org/wiki/Sinoatrial_node
+[gcamp]: https://en.wikipedia.org/wiki/GCaMP
+[endothelial-cells]: https://en.wikipedia.org/wiki/Endothelium
 
 -->
+
+[napari]: https://napari.org/
+[napari github]: https://github.com/napari/napari
+[python-multiprocessing]: https://docs.python.org/2/library/multiprocessing.html
+[czi]: https://chanzuckerberg.com/

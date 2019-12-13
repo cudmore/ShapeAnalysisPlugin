@@ -1,0 +1,24 @@
+# Author: Robert Cudmore
+# Date: 20191212
+
+# todo: check that python3 is a valid Python 3.7.x install
+
+# todo: check if pip is installed, if not install
+
+# todo: check that 'venv' is installed, if not then install
+
+# todo: check if folder 'env' exists
+
+# create a virtual environment in folder 'env'
+python3 -m venv env
+
+# activate the virtual environment
+source env/bin/activate
+
+pip install -r requirements.txt
+
+# deactive environment
+deactivate
+
+# todo: print to terminal, something like
+# The Shape Analysis Plugin is installed, run it from the command line with '.run'

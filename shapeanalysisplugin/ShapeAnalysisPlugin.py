@@ -93,6 +93,9 @@ class ShapeAnalysisPlugin:
 		self.keyboardBindings() # map mouse down/drag to function calls
 
 		self.buildPyQtGraphInterface() # build second window to show results of shape analysis
+		self.buildVisPyInterface()
+
+		self.load()
 
 	def mouseBindings(self):
 		#@self.shapeLayer.mouse_move_callbacks.append
@@ -493,6 +496,53 @@ class ShapeAnalysisPlugin:
 
 		#self.updatePlots()
 
+	def buildVisPyInterface(self):
+		from PyQt5 import QtGui, QtSql, QtCore, QtWidgets
+
+		import vispy.app
+		import vispy.plot as vp
+
+		# vispy
+		#canvas = vispy.app.Canvas()
+		fig = vp.Fig(bgcolor='k', size=(800, 600), show=True)
+
+		fig.create_native()
+
+		data = np.random.rand(100, 2)
+		self.linePlotWidget = fig[0, 0] # this creates a PlotWidget
+		self.linePlot = self.linePlotWidget.plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
+
+		#self.linePlot._line.method = 'agg'
+		#self.linePlot.update_gl_state(depth_test=False)
+
+		'''
+		data = np.random.rand(100)
+		self.linePlot.set_data(data)
+		self.linePlot.update()
+		'''
+
+		#print('self.vpLineProfile.lines:', self.vpLineProfile.lines)
+
+		'''
+		self.fig[0, 0].plot(data=data)
+		self.fig[1, 0].plot(data=data)
+		self.fig[2, 0].plot(data=data)
+		self.fig[3, 0].plot(data=data)
+		'''
+
+		# qt
+		w = QtWidgets.QMainWindow()
+		widget = QtWidgets.QWidget()
+		w.setCentralWidget(widget)
+		widget.setLayout(QtWidgets.QHBoxLayout())
+
+		widget.layout().addWidget(QtWidgets.QPushButton())
+		widget.layout().addWidget(fig.native)
+		#widget.layout().addWidget(canvas.native)
+
+		w.show()
+		vispy.app.run()
+
 	def buildPyQtGraphInterface(self):
 		#
 		# pyqt graph plots
@@ -513,7 +563,9 @@ class ShapeAnalysisPlugin:
 		self.lineProfilePlot.setShadowPen(pg.mkPen((255,255,255), width=2, cosmetic=True))
 		# fit
 		x = y = []
+		# gaussian
 		self.fitPlot = self.lineIntensityPlotItem.plot(x, y, pen=pg.mkPen('r', width=3), name='fit')
+		# heuristic
 		self.fitPlot2 = self.lineIntensityPlotItem.plot(x, y, pen=pg.mkPen('b', symbol='.', symbolSize=10, width=5), name='fitPoints')
 
 		pgRow += 1
@@ -880,6 +932,47 @@ class ShapeAnalysisPlugin:
 		#yFit, fwhm, leftIdx, rightIdx = self.myStack.analysis.fitGaussian(x, lineProfile)
 
 		self.updateLineIntensityPlot(x, lineProfile, yFit, leftIdx, rightIdx)
+		self.updateLineIntensityPlot2(x, lineProfile, yFit, leftIdx, rightIdx)
+
+	def updateLineIntensityPlot2(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan): #, ind_lambda):
+		print('updateLineIntensityPlot2()')
+		if (oneProfile is not None):
+			'''
+			# both oneProfile and x have shape of (n,), e.g. no specific column
+			# we need to reshape them into shape of (n,1)
+			oneProfile2 = np.reshape(oneProfile, (oneProfile.shape[0],1))
+			x2 = np.reshape(x, (x.shape[0],1))
+			# append columns, one after other
+			oneProfile2 = np.append(x2, oneProfile2, 1) # 1 is for columns
+			self.linePlot.set_data(oneProfile)
+			'''
+
+			# this works
+			'''
+			self.linePlot.set_data((x,oneProfile))
+			self.linePlot.update()
+			'''
+
+			# see vispy InfiniteLineVisual to draw slice line
+
+			data = np.random.rand(100,2) + 100
+			self.linePlot.set_data(data)
+			#self.linePlot.update()
+
+			#self.linePlotWidget.view.camera.set_range()
+
+		if (fit is not None):
+			pass
+			#self.fitPlot.setData(x, fit) # gaussian
+		if (oneProfile is not None and not np.isnan(left_idx) and not np.isnan(right_idx)):
+			left_y = oneProfile[left_idx]
+			# cludge because left/right threshold detection has different y ...
+			#right_y = oneProfile[right_idx]
+			right_y = left_y
+			xPnt = [left_idx, right_idx]
+			yPnt = [left_y, right_y]
+			#print('plot_pg() xPnt:', xPnt, 'yPnt:', yPnt)
+			#self.fitPlot2.setData(xPnt, yPnt) # heuristic
 
 	def updateLineIntensityPlot(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan): #, ind_lambda):
 		"""
@@ -893,11 +986,9 @@ class ShapeAnalysisPlugin:
 		print('updateLineIntensityPlot type(right_idx):', right_idx)
 		'''
 		if (oneProfile is not None):
-			#
 			self.lineProfilePlot.setData(x, oneProfile)
 		if (fit is not None):
-			#
-			self.fitPlot.setData(x, fit)
+			self.fitPlot.setData(x, fit) # gaussian
 		if (oneProfile is not None and not np.isnan(left_idx) and not np.isnan(right_idx)):
 			left_y = oneProfile[left_idx]
 			# cludge because left/right threshold detection has different y ...
@@ -906,7 +997,7 @@ class ShapeAnalysisPlugin:
 			xPnt = [left_idx, right_idx]
 			yPnt = [left_y, right_y]
 			#print('plot_pg() xPnt:', xPnt, 'yPnt:', yPnt)
-			self.fitPlot2.setData(xPnt, yPnt)
+			self.fitPlot2.setData(xPnt, yPnt) # heuristic
 
 if __name__ == '__main__':
 

@@ -6,7 +6,7 @@ We assume you have some basics installed on your computer. These include:
  - pip
  - virtual environment.
 
-Once this is all done, you can proceed with the general install instructions.
+Once this is all installed, you can proceed with the general install instructions.
 
 ### Install Python
 
@@ -20,11 +20,17 @@ python3 -m pip install --user --upgrade pip
 ```
 
 
-### Install VirtialEnv (env)
+### Install VirtualEnv (venv)
 
 ```
 python3 -m pip install --user virtualenv
 ```
+
+## Runtime
+
+There was a bug in the multiprocessng package for Python 3.7.x.
+
+todo: add info on error user will get and how to fix it.
 
 
 [python-download]: https://www.python.org/downloads/
