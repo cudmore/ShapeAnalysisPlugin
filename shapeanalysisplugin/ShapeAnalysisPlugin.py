@@ -145,7 +145,7 @@ class ShapeAnalysisPlugin:
 
 		self.buildPyQtGraphInterface() # build second window to show results of shape analysis
 		#self.buildVisPyInterface()
-		self.myVisPyWindow = myVisPyWindow()
+		#self.myVisPyWindow = myVisPyWindow()
 
 		self.load()
 
@@ -568,7 +568,7 @@ class ShapeAnalysisPlugin:
 		widget.setLayout(QtWidgets.QHBoxLayout())
 
 		widget.layout().addWidget(QtWidgets.QPushButton('A Button'))
-		#widget.layout().addWidget(fig.native)
+		widget.layout().addWidget(fig.native)
 		#widget.layout().addWidget(canvas.native)
 
 		w.show()
@@ -578,6 +578,16 @@ class ShapeAnalysisPlugin:
 		print('buildVisPyInterface() done')
 
 	def buildPyQtGraphInterface(self):
+		aPlotItem = pg.plot([1,2], [2,3])
+		# qt
+		w = QtWidgets.QMainWindow()
+		widget = QtWidgets.QWidget()
+		w.setCentralWidget(widget)
+		widget.setLayout(QtWidgets.QHBoxLayout())
+		widget.layout().addWidget(QtWidgets.QPushButton('A Button'))
+		widget.layout().addWidget(aPlotItem)
+		w.show()
+
 		#
 		# pyqt graph plots
 		self.pgWin = pg.GraphicsWindow(title="Shape Analysis Plugin") # creates a window
@@ -966,7 +976,7 @@ class ShapeAnalysisPlugin:
 		#yFit, fwhm, leftIdx, rightIdx = self.myStack.analysis.fitGaussian(x, lineProfile)
 
 		self.updateLineIntensityPlot(x, lineProfile, yFit, leftIdx, rightIdx)
-		self.updateLineIntensityPlot2(x, lineProfile, yFit, leftIdx, rightIdx)
+		#self.updateLineIntensityPlot2(x, lineProfile, yFit, leftIdx, rightIdx)
 
 	def updateLineIntensityPlot2(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan): #, ind_lambda):
 		print('updateLineIntensityPlot2()')
