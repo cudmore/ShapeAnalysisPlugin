@@ -46,7 +46,7 @@ from PyQt5 import QtGui, QtSql, QtCore, QtWidgets
 import vispy.app
 import vispy.plot as vp
 
-#import bimpy # needed for bAnalysis2.py, the backend analysis for shapes
+#import bimpy #
 from ShapeAnalysis import ShapeAnalysis
 
 class myVisPyWindow(QtWidgets.QWidget):
@@ -73,6 +73,22 @@ class myVisPyWindow(QtWidgets.QWidget):
 		self.show()
 
 		print('buildVisPyInterface() done')
+
+class myPyQtGraph(QtWidgets.QWidget):
+	def __init__(self):
+		super(myPyQtGraph, self).__init__()
+		self.initUI()
+
+	def initUI(self):
+		# vispy
+		onePlot = pg.plot([1,2], [3,4])
+
+		# PyQt (with vispy fig.native)
+		self.myHBoxLayout = QtWidgets.QHBoxLayout(self)
+		self.myHBoxLayout.addWidget(QtWidgets.QPushButton('My Button'))
+		self.myHBoxLayout.addWidget(onePlot)
+
+		self.show()
 
 class ShapeAnalysisPlugin:
 	"""
@@ -578,16 +594,6 @@ class ShapeAnalysisPlugin:
 		print('buildVisPyInterface() done')
 
 	def buildPyQtGraphInterface(self):
-		aPlotItem = pg.plot([1,2], [2,3])
-		# qt
-		w = QtWidgets.QMainWindow()
-		widget = QtWidgets.QWidget()
-		w.setCentralWidget(widget)
-		widget.setLayout(QtWidgets.QHBoxLayout())
-		widget.layout().addWidget(QtWidgets.QPushButton('A Button'))
-		widget.layout().addWidget(aPlotItem)
-		w.show()
-
 		#
 		# pyqt graph plots
 		self.pgWin = pg.GraphicsWindow(title="Shape Analysis Plugin") # creates a window
@@ -1072,6 +1078,8 @@ if __name__ == '__main__':
 			#title=title)
 		'''
 
+		tmp = myPyQtGraph()
+		
 		# run the plugin
 		#ShapeAnalysisPlugin(viewer, imageLayer=myImageLayer, imagePath=path)
 		ShapeAnalysisPlugin(imagePath=path)
