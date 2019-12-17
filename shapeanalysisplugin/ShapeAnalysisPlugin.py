@@ -49,10 +49,12 @@ import vispy.plot as vp
 #import bimpy #
 from ShapeAnalysis import ShapeAnalysis
 
+"""
 class myVisPyWindow(QtWidgets.QWidget):
 	def __init__(self):
 		super(myVisPyWindow, self).__init__()
-		self.buildVisPyInterface()
+
+		self.sliceLinesList = []
 
 	def buildVisPyInterface(self):
 
@@ -73,22 +75,131 @@ class myVisPyWindow(QtWidgets.QWidget):
 		self.show()
 
 		print('buildVisPyInterface() done')
+"""
 
-class myPyQtGraph(QtWidgets.QWidget):
+class myPyQtGraphWidget(QtWidgets.QWidget):
 	def __init__(self):
-		super(myPyQtGraph, self).__init__()
+		super(myPyQtGraphWidget, self).__init__()
+
+		self.sliceLinesList = []
+
 		self.initUI()
 
 	def initUI(self):
-		# vispy
-		onePlot = pg.plot([1,2], [3,4])
-
-		# PyQt (with vispy fig.native)
+		# horizontal layout to hold
+		# | vertical layout with qt widgets | vertical layout with pyqtgraph plot |
 		self.myHBoxLayout = QtWidgets.QHBoxLayout(self)
-		self.myHBoxLayout.addWidget(QtWidgets.QPushButton('My Button'))
-		self.myHBoxLayout.addWidget(onePlot)
 
+		# PyQtt
+		leftVBoxLayout = QtWidgets.QVBoxLayout(self)
+		self.myHBoxLayout.addLayout(leftVBoxLayout)
+
+		leftVBoxLayout.addWidget(QtWidgets.QPushButton('My Button'))
+		leftVBoxLayout.addWidget(QtWidgets.QTreeView())
+
+
+		# vispy
+		rightVBoxLayout = QtWidgets.QVBoxLayout(self)
+		self.myHBoxLayout.addLayout(rightVBoxLayout)
+
+		# 1) line intensity profile (white), gaussuian fit (red) , heuroistic fit (blue)
+		pgRow = 0
+		self.lineIntensityWindow = pg.plot([], [], row=pgRow, col=0)
+		self.lineIntensityWindow.setLabel('left', 'Intensity', units='')
+		self.lineIntensityWindow.setLabel('bottom', 'Line Profile', units='')
+		self.lineIntensityPlot = self.lineIntensityWindow.plot([], [], pen=pg.mkPen('w', width=3),
+			row=0, col=0)
+		self.lineItensityFit1 = self.lineIntensityWindow.plot([], [], pen=pg.mkPen('r', width=3),
+			row=0, col=0)
+		self.lineItensityFit2 = self.lineIntensityWindow.plot([], [], pen=pg.mkPen('b', symbol='.', symbolSize=10, width=5),
+			row=0, col=0)
+		rightVBoxLayout.addWidget(self.lineIntensityWindow)
+
+		#
+		# (2) diameter for each slice
+		pgRow += 1
+		self.diameterWindow = pg.plot([], [], row=pgRow, col=0)
+		self.diameterWindow.setLabel('left', 'Diameter', units='')
+
+		sliceLine = pg.InfiniteLine(pos=0, angle=90)
+		self.sliceLinesList.append(sliceLine) # keep a list of vertical slice lines so we can update all at once
+		self.diameterWindow.addItem(sliceLine)
+		#
+		self.diameterPlot = self.diameterWindow.plot(name='lineintensitydiameter')
+
+		rightVBoxLayout.addWidget(self.diameterWindow)
+
+		#
+		# (3) kymograph image of line intensity (y) for each slice (x)
+		pgRow += 1
+		self.kymographWindow = pg.plot([], [], row=pgRow, col=0)
+		self.kymographWindow.setLabel('left', 'Line Intensity Profile', units='')
+
+		self.img = pg.ImageItem()
+		self.kymographWindow.addItem(self.img)
+
+		sliceLine = pg.InfiniteLine(pos=0, angle=90)
+		self.sliceLinesList.append(sliceLine) # keep a list of vertical slice lines so we can update all at once
+		self.kymographWindow.addItem(sliceLine)
+
+		rightVBoxLayout.addWidget(self.kymographWindow)
+
+		#
+		# (4) intensity of polygon for each slice
+		pgRow += 1
+		self.polygonPlotWindow = pg.plot([], [], row=pgRow, col=0)
+		self.polygonPlotWindow.setLabel('left', 'Mean Polygon Intensity') #, units='A)
+		self.polygonPlotWindow.setLabel('bottom', 'Slices') #, units='s')
+
+		sliceLine = pg.InfiniteLine(pos=0, angle=90)
+		self.sliceLinesList.append(sliceLine) # keep a list of vertical slice lines so we can update all at once
+		self.polygonPlotWindow.addItem(sliceLine)
+		# the selected shapes mean (through all slices)
+		self.selectedPolygonMeanPlot = self.polygonPlotWindow.plot(symbolSize=3, name='analysisPolygonMean')
+
+		# all polygon mean across all shapes/rois
+		self.polygonMeanListPlot = []
+
+		rightVBoxLayout.addWidget(self.polygonPlotWindow)
+
+		# qt, show the window
 		self.show()
+
+	def updateLinePlot(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan):
+		if (oneProfile is not None):
+			print('oneProfile.shape', oneProfile.shape)
+			print('x.shape', x.shape)
+			self.lineIntensityPlot.setData(x,oneProfile)
+			self.lineIntensityPlot.update()
+
+		if (fit is not None):
+			self.lineItensityFit1.setData(x, fit) # gaussian
+
+		if (oneProfile is not None and not np.isnan(left_idx) and not np.isnan(right_idx)):
+			left_y = oneProfile[left_idx]
+			# cludge because left/right threshold detection has different y ...
+			#right_y = oneProfile[right_idx]
+			right_y = left_y
+			xPnt = [left_idx, right_idx]
+			yPnt = [left_y, right_y]
+			self.lineItensityFit2.setData(xPnt, yPnt) # heuristic
+
+	def updateDiameter(self, x, y):
+		self.diameterPlot.setData(x, y, connect='finite')
+
+	def updateKymograph(self, kymographData):
+		self.img.setImage(kymographData)
+
+	def updatePolygons(self, x, selectedMean):
+		self.selectedPolygonMeanPlot.setData(x, selectedMean)
+
+	def updateVerticalSliceLines(self, sliceNum):
+		"""
+		Set vertical line indicating current slice
+		"""
+		for line in self.sliceLinesList:
+			line.setValue(sliceNum)
+
 
 class ShapeAnalysisPlugin:
 	"""
@@ -107,6 +218,8 @@ class ShapeAnalysisPlugin:
 		Assuming:
 			imageLayer.data is (slices, rows, col)
 		"""
+
+		self.myPyQtGraphWidget =  myPyQtGraphWidget()
 
 		# start pulled from main
 		title = ''
@@ -564,6 +677,7 @@ class ShapeAnalysisPlugin:
 
 		#self.updatePlots()
 
+	"""
 	def buildVisPyInterface(self):
 
 		# vispy
@@ -592,6 +706,7 @@ class ShapeAnalysisPlugin:
 		#vispy.app.run() # this does not return?
 
 		print('buildVisPyInterface() done')
+	"""
 
 	def buildPyQtGraphInterface(self):
 		#
@@ -785,6 +900,8 @@ class ShapeAnalysisPlugin:
 
 			self.updateVerticalSliceLines(self.sliceNum)
 
+			self.myPyQtGraphWidget.updateVerticalSliceLines(self.sliceNum)
+
 			# todo: this does not feal right ... fix this !!!
 			shapeType, index, data = self._getSelectedShape()
 			if shapeType == 'line':
@@ -870,6 +987,11 @@ class ShapeAnalysisPlugin:
 			# kymograph
 			lineKymograph = self.shapeLayer.metadata[index]['lineKymograph']
 			self.img.setImage(lineKymograph)
+
+			# new
+			self.myPyQtGraphWidget.updateDiameter(xPlot, lineDiameter)
+			self.myPyQtGraphWidget.updateKymograph(lineKymograph)
+
 		elif shapeType == 'rectangle':
 			#
 			# plot all rectangle polygonMean
@@ -884,6 +1006,9 @@ class ShapeAnalysisPlugin:
 
 			xPlot = np.asarray([slice for slice in range(len(polygonMean))])
 			self.analysisPolygonMean.setData(xPlot, polygonMean, connect='finite') # connect 'finite' will make nan(s) disjoint
+
+			# new, selected ractanle
+			self.myPyQtGraphWidget.updatePolygons(xPlot, polygonMean)
 
 		# first clear all
 		for idx in range(len(self.polygonMeanListPlot)):
@@ -1035,12 +1160,17 @@ class ShapeAnalysisPlugin:
 		Parameters:
 			oneProfile: ndarray of line intensity
 		"""
+
+		# new
+		self.myPyQtGraphWidget.updateLinePlot(x, oneProfile, fit, left_idx, right_idx)
+
 		'''
 		print('updateLineIntensityPlot type(left_idx):', left_idx)
 		print('updateLineIntensityPlot type(right_idx):', right_idx)
 		'''
 		if (oneProfile is not None):
 			self.lineProfilePlot.setData(x, oneProfile)
+
 		if (fit is not None):
 			self.fitPlot.setData(x, fit) # gaussian
 		if (oneProfile is not None and not np.isnan(left_idx) and not np.isnan(right_idx)):
@@ -1078,8 +1208,8 @@ if __name__ == '__main__':
 			#title=title)
 		'''
 
-		tmp = myPyQtGraph()
-		
+		#tmp = myPyQtGraphWidget()
+
 		# run the plugin
 		#ShapeAnalysisPlugin(viewer, imageLayer=myImageLayer, imagePath=path)
 		ShapeAnalysisPlugin(imagePath=path)
