@@ -79,7 +79,12 @@ class myVisPyWindow(QtWidgets.QWidget):
 
 class myPyQtGraphWidget(QtWidgets.QWidget):
 	"""
-	Display shape anaysis plugin and 4 plot
+	Display shape anaysis plugin window with 4 plots. 1-3 are for line shapes, 4 is for polygon (rectangle) shapes
+		1) Line intensity profile + gaussian fit + heuristic fit.
+			This is updated in real time while user drags a line shape
+		2) Plot of calculated diameter (y) for each slice/frame in the image
+		3) 'Kymograph' image plot of line intensity profile (y) versus each slice/frame in the image
+		4) The mean intensity in each polygon/ractangle shape (y) versus each  slice/frame in the image
 	"""
 	def __init__(self):
 		super(myPyQtGraphWidget, self).__init__()
@@ -90,21 +95,25 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 
 	def initUI(self):
 		# horizontal layout to hold
-		# | vertical layout with qt widgets | vertical layout with pyqtgraph plot |
+		# | vertical layout with qt widgets | vertical layout with pyqtgraph plots |
+		self.setWindowTitle('Shape Analysis Widget')
+
 		self.myHBoxLayout = QtWidgets.QHBoxLayout(self)
 
-		# PyQtt
+		# vertical layout with qt widgets
 		leftVBoxLayout = QtWidgets.QVBoxLayout(self)
 		self.myHBoxLayout.addLayout(leftVBoxLayout)
 
 		leftVBoxLayout.addWidget(QtWidgets.QPushButton('My Button'))
-		leftVBoxLayout.addWidget(QtWidgets.QTreeView()) #todo: derive this class and make it send/receive events on shape changes
+		#todo: derive QTreeView class and make it send/receive events on shape changes
+		leftVBoxLayout.addWidget(QtWidgets.QTreeView())
 
 
-		# vispy
+		# vertical layout with pyqtgraph plote (eventually vispy)
 		rightVBoxLayout = QtWidgets.QVBoxLayout(self)
 		self.myHBoxLayout.addLayout(rightVBoxLayout)
 
+		#
 		# 1) line intensity profile (white), gaussuian fit (red) , heuroistic fit (blue)
 		pgRow = 0
 		self.lineIntensityWindow = pg.plot([], [], row=pgRow, col=0)
@@ -168,7 +177,34 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		# qt, show the window
 		self.show()
 
+	def polygon_add(self):
+		""" Add a polygon to the list"""
+
+	def polygon_remove(self):
+		""" Remove a polygon from the list
+		"""
+
+	def polygon_select(self):
+		""" Select a polygon in the list
+		"""
+
+	def polygon_update(self):
+		""" Update a polygon
+		"""
+
 	def updateLinePlot(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan):
+		"""
+		Update the line intensity profile plot with current (real time as user drags information)
+
+		All parameters represent the current line intensity profile and its analysis
+		as the user drags the line around and when slices/images are scrolled
+
+		Parameters:
+			x: slices, usually 0..n-1, where n is the number of slices/images
+			oneProfile: ndarray of pixel intensity along the line. Number of points gives us length of line
+			fit: ndarray containing gaussian fit along the line profile (len is same as oneProfile)
+			left_idx, right_idx: scalar that gives us x position of a heuristic diameter fit
+		"""
 		if (oneProfile is not None):
 			print('oneProfile.shape', oneProfile.shape)
 			print('x.shape', x.shape)
@@ -188,17 +224,41 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 			self.lineItensityFit2.setData(xPnt, yPnt) # heuristic
 
 	def updateDiameter(self, x, y):
+		"""
+		Update the diameter (y) versus slice (x) plot.
+
+		Parameters:
+			(x,y) are new diameter (y) and slice number (x)
+
+		Not real time, called after analysis for entire stack
+
+		todo: we do not need to know 'x' each time, assuming self is for one image
+				calculate self.x in constructor __init__
+		"""
 		self.diameterPlot.setData(x, y, connect='finite')
 
 	def updateKymograph(self, kymographData):
+		"""
+		Update the kymograph image of a line profile (y) through all slices (x)
+
+		Parameters:
+			kymographData: x/y image data with each line profile (y) across all images/slices in image
+
+		Not real time, called after analysis for entire stack
+		"""
 		self.img.setImage(kymographData)
 
 	def updatePolygons(self, x, selectedMean):
+		"""
+		Update the one selected polygon in white
+		"""
 		self.selectedPolygonMeanPlot.setData(x, selectedMean)
 
 	def updateVerticalSliceLines(self, sliceNum):
 		"""
 		Set vertical line indicating current slice
+
+		We keep a self.sliceLinesList list of all of them (in plots #2, #3, and #4)
 		"""
 		for line in self.sliceLinesList:
 			line.setValue(sliceNum)
@@ -275,21 +335,23 @@ class ShapeAnalysisPlugin:
 		self.mouseBindings() # map key strokes to funciton calls
 		self.keyboardBindings() # map mouse down/drag to function calls
 
-		self.buildPyQtGraphInterface() # build second window to show results of shape analysis
+		#todo: depreciate this
+		# build second window to show results of shape analysis
+		self.buildPyQtGraphInterface()
+
 		#self.buildVisPyInterface()
 		#self.myVisPyWindow = myVisPyWindow()
 
 		self.load()
 
 	def mouseBindings(self):
-		#@self.shapeLayer.mouse_move_callbacks.append
 		@self.shapeLayer.mouse_drag_callbacks.append
 		def shape_mouse_move_callback(layer, event):
-			"""r espond to mouse_down """
+			"""respond to mouse_down """
 			self.myMouseDown_Shape(layer, event)
 
-		# this decorator cannot point to member function directly because it needs yield
-		# put inline function with yield right after decorator
+		# this decorator cannot point to member function directly because it needs 'yield'
+		# put inline function with 'yield' right after decorator
 		# and then call member functions from within
 		@self.shapeLayer.mouse_drag_callbacks.append
 		def shape_mouse_drag_callback(layer, event):
@@ -497,7 +559,7 @@ class ShapeAnalysisPlugin:
 
 	def addNewRectangle(self):
 		"""
-		Add a new rectangle shape, in response to user keyboard 'l'
+		Add a new rectangle shape, in response to user keyboard 'r'
 		"""
 		shapeDict = {
 			'shape_type': 'rectangle',
@@ -509,6 +571,7 @@ class ShapeAnalysisPlugin:
 
 	def defaultShapes(self):
 		"""
+		Was using this for debugging so we had some shapes on first run
 		"""
 		self.addNewLine()
 		self.addNewRectangle()
@@ -541,6 +604,7 @@ class ShapeAnalysisPlugin:
 		Save all shapes and analysis to a h5f file
 
 		todo: save each of (shape_types, edge_colors, etc) as a group attrs rather than a dict
+		todo: migrate this to ShapeAnalysis class to be used from Jupyter notebook (without napari interface)
 		"""
 		print('=== bShapeAnalysisWidget.save()')
 		#print(type(self.shapeLayer.data[0]))
@@ -594,6 +658,8 @@ class ShapeAnalysisPlugin:
 	def load(self):
 		"""
 		Load shapes and analysis from h5f file
+
+		todo: migrate this to ShapeAnalysis class to be used from Jupyter notebook (without napari interface)
 		"""
 		h5File = self._getSavePath()
 		print('=== bShapeAnalysisWidget.load() file:', h5File)
@@ -712,6 +778,9 @@ class ShapeAnalysisPlugin:
 	"""
 
 	def buildPyQtGraphInterface(self):
+		"""
+		Depreciated, use myPyQtGraphWidget instead
+		"""
 		#
 		# pyqt graph plots
 		self.pgWin = pg.GraphicsWindow(title="Shape Analysis Plugin") # creates a window
@@ -819,7 +888,8 @@ class ShapeAnalysisPlugin:
 
 	@property
 	def imageData(self):
-		""" return image data for analysis
+		"""
+		return image data for analysis
 
 		should be using a filtered image
 		"""
@@ -1188,9 +1258,14 @@ class ShapeAnalysisPlugin:
 
 if __name__ == '__main__':
 
+	import sys
+
 	with napari.gui_qt():
 		# path to a tif file. Assuming it is 3D with dimensions of (slice, rows, cols)
-		path = '/Users/cudmore/box/data/bImpy-Data/high-k-video/HighK-aligned-8bit-short.tif'
+		if len(sys.argv) == 2:
+			path = sys.argv[1]
+		else:
+			path = '/Users/cudmore/box/data/bImpy-Data/high-k-video/HighK-aligned-8bit-short.tif'
 		#path = '/Volumes/t3/20191105(Tie2Cre-GCaMP6f)/ISO_IN_500nM_8bit_cropped.tif'
 		#path = '/Volumes/t3/20191105(Tie2Cre-GCaMP6f)/ISO_IN_500nM_8bit.tif'
 
