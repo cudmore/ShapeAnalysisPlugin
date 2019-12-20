@@ -32,17 +32,25 @@ Assuming you have `Python 3.7.x`, `pip`, and `venv`
 ```
 cd ShapeAnalysisPlugin
 
-python3 -m venv env # create a virtual environment in folder 'env'
-source env/bin/activate # activate the virtual environment
+# create a virtual environment in folder 'env'
+python3 -m venv env
 
+# activate the virtual environment
+source env/bin/activate
+
+# install required packages
 pip install -r requirements.txt
 ```
 
 ### 3) Run
 
 ```
-cd shapeanalysisplugin
-python3 ShapeAnalysisPlugin.py
+cd ShapeAnalysisPlugin
+
+# activate the virtual environment
+source env/bin/activate
+
+python3 shapeanalysisplugin/ShapeAnalysisPlugin.py /full/path/to/your/tiff/file
 ```
 
 ## Interface
@@ -58,10 +66,6 @@ Command+Shift+L: Load h5f file (prompt user for file)
 Command+l: Load default h5f file (each .tif has corresponding h5f file)
 Command+s: Save default h5f file (each .tif has corresponding h5f file)
 ```
-
-
-
-
 
 [napari]: https://napari.org/
 [napari github]: https://github.com/napari/napari
