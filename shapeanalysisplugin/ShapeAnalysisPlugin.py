@@ -78,6 +78,9 @@ class myVisPyWindow(QtWidgets.QWidget):
 """
 
 class myPyQtGraphWidget(QtWidgets.QWidget):
+	"""
+	Display shape anaysis plugin and 4 plot
+	"""
 	def __init__(self):
 		super(myPyQtGraphWidget, self).__init__()
 
@@ -95,7 +98,7 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		self.myHBoxLayout.addLayout(leftVBoxLayout)
 
 		leftVBoxLayout.addWidget(QtWidgets.QPushButton('My Button'))
-		leftVBoxLayout.addWidget(QtWidgets.QTreeView())
+		leftVBoxLayout.addWidget(QtWidgets.QTreeView()) #todo: derive this class and make it send/receive events on shape changes
 
 
 		# vispy
