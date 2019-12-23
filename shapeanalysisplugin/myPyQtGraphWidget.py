@@ -117,6 +117,7 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		""" Remove a polygon from the list """
 		type = self.shapeLayer.shape_types[index]
 		if type == 'rectangle':
+			print('shape_delete() deleting rectangle at index', index)
 			# we can't use index as it includes all shapes, we need index into rectangle to remove?
 			rectangleIndex = self._getRectangleIndex(index)
 			# before we delete, clear the plot
@@ -133,7 +134,6 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		"""
 
 		#print('myQtGraphWidget.updateShapeSelection() index:', index)
-
 		if index is None:
 			return
 
@@ -227,10 +227,11 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		numRectangle = 0 # keep track of rectangle number 0, 1, 2, ... to index into self.polygonMeanListPlot
 		for idx, type in enumerate(self.shapeLayer.shape_types):
 			if type == 'rectangle':
+				#if len(self.polygonMeanListPlot)-1 < numRectangle:
 				if len(self.polygonMeanListPlot)-1 < numRectangle:
 					# append a new polygon ...
 					self.polygonMeanListPlot.append(self.polygonPlotWidget.plot(pen=(255,0,0), name='polygonMeanListPlot'+str(idx)))
-					#print('   appending rectangle for shape idx:', idx)
+					print('   plotAllPolygon() appended rectangle for shape idx:', idx)
 				polygonMean = self.shapeLayer.metadata[idx]['polygonMean']
 				xPlot = np.asarray([slice for slice in range(len(polygonMean))])
 				#print(idx, 'polygonMean.shape:', polygonMean.shape)

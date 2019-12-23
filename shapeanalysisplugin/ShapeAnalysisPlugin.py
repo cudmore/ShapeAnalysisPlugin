@@ -15,7 +15,7 @@
 
 	Important:
 	 - We are managing self.shapeLayer.metadata, append on new, pop on delete
-	 
+
 	Todo:
 	 - rewrite code to use native napari plotting with VisPy, we are currently using PyQtGraph
 	 - Work with napari developers to create API to manage shapes (add, delete, move, drag vertex, etc. etc.)
@@ -44,7 +44,6 @@ import napari
 from ShapeAnalysis import ShapeAnalysis # backend analysis
 from myPyQtGraphWidget import myPyQtGraphWidget
 
-
 class ShapeAnalysisPlugin:
 	"""
 	handle interface of one shape roi at a time
@@ -68,6 +67,9 @@ class ShapeAnalysisPlugin:
 			title = os.path.basename(imagePath)
 
 		self.napariViewer = napari.Viewer(title=title)
+
+		# how do we set position and size of viewer?
+		# in Qt it is self.setGeometery(x,y,w,h)
 
 		# add image as layer
 		colormap = 'green'
@@ -217,7 +219,7 @@ class ShapeAnalysisPlugin:
 		# (1)
 		if shapeType == 'rectangle':
 			self.myPyQtGraphWidget.shape_delete(index)
-		
+
 		# delete from napari
 		# order matters, this has to be after (1) above
 		self.shapeLayer.remove_selected() # remove from napari
@@ -225,9 +227,9 @@ class ShapeAnalysisPlugin:
 		self.shapeLayer.metadata.pop(index)
 
 		# update plots
-		self.updatePlots() #refresh plots
-		self.myPyQtGraphWidget.plotAllPolygon(None)
-		
+		self.updatePlots(updatePolygons=True) #refresh plots
+		#self.myPyQtGraphWidget.plotAllPolygon(None)
+
 	def _addNewShape(self, shapeDict):
 		""" Add a new shape """
 
@@ -423,7 +425,8 @@ class ShapeAnalysisPlugin:
 		#self.updatePlots()
 
 		# plot all polygon analysis
-		self.myPyQtGraphWidget.plotAllPolygon(None)
+		self.updatePlots(updatePolygons=True)
+		#self.myPyQtGraphWidget.plotAllPolygon(None)
 
 	@property
 	def imageData(self):
@@ -444,8 +447,8 @@ class ShapeAnalysisPlugin:
 		event is type vispy.app.canvas.MouseEvent
 		see: http://api.vispy.org/en/v0.1.0-0/event.html
 		"""
-		
-		type, index, dict = self._getSelectedShape()
+
+		#type, index, dict = self._getSelectedShape()
 
 		'''
 		print('ShapeAnalysisPlugin.myMouseDown_Shape()', layer, event.type)
@@ -453,7 +456,7 @@ class ShapeAnalysisPlugin:
 		print('   index:', index)
 		print('   dict:', dict) # (type, index, dict)
 		'''
-		
+
 		self.updatePlots()
 
 	def lineShapeChange_callback(self, layer, event):
@@ -504,6 +507,64 @@ class ShapeAnalysisPlugin:
 			if shapeType == 'line':
 				self.updateLines(self.sliceNum, data)
 
+	def updatePlots(self, updatePolygons=False):
+		"""
+		update plots based on current selection
+
+		todo: The logic here is all screwed up. We need to update even if there is not a selection !!!!
+
+		This needs to update (1) a line based on selection and (2) all rectangle shapes/roi, regardless of selection
+		"""
+
+		print('bShapeAnalysisPlugin.updatePlots()')
+
+		shapeType, index, data = self._getSelectedShape()
+
+		# on delete, these will all be None
+		print('   shapeType:', shapeType)
+		print('   index:', index)
+
+		# in the end just use this
+		self.myPyQtGraphWidget.updateShapeSelection(index)
+
+		if updatePolygons:
+			self.myPyQtGraphWidget.plotAllPolygon(index)
+
+	def updateAnalysis(self):
+		"""
+		Update the analysis of the currently selected shape
+		"""
+		shapeType, index, data = self._getSelectedShape()
+		if index is None:
+			return
+		if shapeType == 'line':
+			self.updateStackLineProfile()
+		elif shapeType in ['rectangle', 'polygon']:
+			self.updateStackPolygon()
+		else:
+			print('updateAnalysis() unknown shape type:', shapeType)
+			return
+		# update plots
+		#self.myPyQtGraphWidget.updateShapeSelection(index)
+
+	def updateStackLineProfile(self):
+		"""
+		generate a line profile for each image in a stack/timeseries
+
+		data: two points that make the line
+		"""
+		shapeType, index, data = self._getSelectedShape()
+
+		src = data[0]
+		dst = data[1]
+		print('updateStackLineProfile() src:', src, 'dst:', dst)
+		x, lineKymograph, lineDiameter = self.analysis.stackLineProfile(src, dst)
+
+		self.shapeLayer.metadata[index]['lineDiameter'] = lineDiameter
+		self.shapeLayer.metadata[index]['lineKymograph'] = lineKymograph
+
+		self.updatePlots()
+
 	def updateStackPolygon(self, index=None):
 		"""
 		data is a list of points specifying vertices of a polygon
@@ -523,64 +584,7 @@ class ShapeAnalysisPlugin:
 		self.shapeLayer.metadata[index]['polygonMean'] = theMean
 
 		# plot
-		self.updatePlots()
-
-	def updatePlots(self):
-		"""
-		update plots based on current selection
-
-		todo: The logic here is all screwed up. We need to update even if there is not a selection !!!!
-
-		This needs to update (1) a line based on selection and (2) all rectangle shapes/roi, regardless of selection
-		"""
-
-		print('bShapeAnalysisPlugin.updatePlots()')
-
-		shapeType, index, data = self._getSelectedShape()
-
-		# on delete, these will all be None
-		print('   shapeType:', shapeType)
-		print('   index:', index)
-		print('   data:', data)
-
-		# in the end just use this
-		self.myPyQtGraphWidget.updateShapeSelection(index)
-		
-
-	def updateAnalysis(self):
-		"""
-		Update the analysis of the currently selected shape
-		"""
-		shapeType, index, data = self._getSelectedShape()
-		if index is None:
-			return
-		if shapeType == 'line':
-			self.updateStackLineProfile()
-		elif shapeType in ['rectangle', 'polygon']:
-			self.updateStackPolygon()
-		else:
-			print('updateAnalysis() unknown shape type:', shapeType)
-			return
-		# update plots
-		self.myPyQtGraphWidget.updateShapeSelection(index)
-		
-	def updateStackLineProfile(self):
-		"""
-		generate a line profile for each image in a stack/timeseries
-
-		data: two points that make the line
-		"""
-		shapeType, index, data = self._getSelectedShape()
-
-		src = data[0]
-		dst = data[1]
-		print('updateStackLineProfile() src:', src, 'dst:', dst)
-		x, lineKymograph, lineDiameter = self.analysis.stackLineProfile(src, dst)
-
-		self.shapeLayer.metadata[index]['lineDiameter'] = lineDiameter
-		self.shapeLayer.metadata[index]['lineKymograph'] = lineKymograph
-
-		self.updatePlots()
+		self.updatePlots(updatePolygons=True)
 
 	def updateVerticalSliceLines(self, sliceNum):
 		"""
