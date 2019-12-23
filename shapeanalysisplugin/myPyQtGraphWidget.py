@@ -22,7 +22,7 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		xPos = 100
 		yPos = 100
 		width = 900
-		height = 1200
+		height = 900
 		self.setGeometry(xPos, yPos, width, height)
 
 		self.shapeLayer = shapeLayer
@@ -117,9 +117,9 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		""" Remove a polygon from the list """
 		type = self.shapeLayer.shape_types[index]
 		if type == 'rectangle':
-			print('shape_delete() deleting rectangle at index', index)
 			# we can't use index as it includes all shapes, we need index into rectangle to remove?
 			rectangleIndex = self._getRectangleIndex(index)
+			print('*** shape_delete() deleting rectangle at shape index', index, 'rectangleIndex', rectangleIndex)
 			# before we delete, clear the plot
 			self.polygonMeanListPlot[rectangleIndex].setData([], [], connect='finite')
 			# remove the plot
@@ -224,14 +224,9 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 		for idx in range(len(self.polygonMeanListPlot)):
 			self.polygonMeanListPlot[idx].setData([], [], connect='finite')
 		# then replot
-		numRectangle = 0 # keep track of rectangle number 0, 1, 2, ... to index into self.polygonMeanListPlot
+		rectangleIdx = 0 # keep track of rectangle number 0, 1, 2, ... to index into self.polygonMeanListPlot
 		for idx, type in enumerate(self.shapeLayer.shape_types):
 			if type == 'rectangle':
-				#if len(self.polygonMeanListPlot)-1 < numRectangle:
-				if len(self.polygonMeanListPlot)-1 < numRectangle:
-					# append a new polygon ...
-					self.polygonMeanListPlot.append(self.polygonPlotWidget.plot(pen=(255,0,0), name='polygonMeanListPlot'+str(idx)))
-					print('   plotAllPolygon() appended rectangle for shape idx:', idx)
 				polygonMean = self.shapeLayer.metadata[idx]['polygonMean']
 				xPlot = np.asarray([slice for slice in range(len(polygonMean))])
 				#print(idx, 'polygonMean.shape:', polygonMean.shape)
@@ -245,9 +240,13 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 					polygonMean = polygonMean / tmpMean * 100
 					polygonMean += idx * 20
 
-				self.polygonMeanListPlot[numRectangle].setData(xPlot, polygonMean, connect='finite')
+				if len(self.polygonMeanListPlot) < rectangleIdx+1:
+					# append a new polygon ...
+					self.polygonMeanListPlot.append(self.polygonPlotWidget.plot(pen=(255,0,0), name='polygonMeanListPlot'+str(idx)))
+					print('   plotAllPolygon() appended rectangle for shape idx:', idx, numRectangle, len(self.polygonMeanListPlot))
+				self.polygonMeanListPlot[rectangleIdx].setData(xPlot, polygonMean, connect='finite')
 
-				numRectangle += 1
+				rectangleIdx += 1
 
 	def _getRectangleIndex(self, shapeIndex):
 		"""

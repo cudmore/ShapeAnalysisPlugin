@@ -17,6 +17,8 @@
 	 - We are managing self.shapeLayer.metadata, append on new, pop on delete
 
 	Todo:
+	 - Line analysis needs to use napari line 'edge_width' it is currently defaulting to 1 pixel
+	 	See calls to self.analysis.lineProfile()
 	 - rewrite code to use native napari plotting with VisPy, we are currently using PyQtGraph
 	 - Work with napari developers to create API to manage shapes (add, delete, move, drag vertex, etc. etc.)
 	 - Detatch from pImpy and make a simple 2 file standalone github repo (bShapeAnalysisWidget.py, bShapeAnalysis.py)
@@ -214,7 +216,6 @@ class ShapeAnalysisPlugin:
 		print('_deleteShape()')
 		print('   shapeType:', shapeType)
 		print('   index:', index) # absolute shape index
-		print('   data:', data)
 
 		# (1)
 		if shapeType == 'rectangle':
@@ -227,8 +228,7 @@ class ShapeAnalysisPlugin:
 		self.shapeLayer.metadata.pop(index)
 
 		# update plots
-		self.updatePlots(updatePolygons=True) #refresh plots
-		#self.myPyQtGraphWidget.plotAllPolygon(None)
+		self.updatePlots(updatePolygons=True)
 
 	def _addNewShape(self, shapeDict):
 		""" Add a new shape """
