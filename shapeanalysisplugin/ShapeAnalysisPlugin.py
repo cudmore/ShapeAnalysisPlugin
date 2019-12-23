@@ -13,6 +13,9 @@
 	Requires:
 	 - ShapeAnalysis.py
 
+	Important:
+	 - We are managing self.shapeLayer.metadata, append on new, pop on delete
+	 
 	Todo:
 	 - rewrite code to use native napari plotting with VisPy, we are currently using PyQtGraph
 	 - Work with napari developers to create API to manage shapes (add, delete, move, drag vertex, etc. etc.)
@@ -31,237 +34,15 @@ import os, time, json
 import numpy as np
 import h5py
 
-#from scipy.ndimage import gaussian_filter
 import scipy.ndimage
-
-import pyqtgraph as pg
-'''
-from pyqtgraph.Qt import QtCore, QtGui
-'''
 
 import napari
 
-from PyQt5 import QtGui, QtSql, QtCore, QtWidgets
+#import vispy.app
+#import vispy.plot as vp
 
-import vispy.app
-import vispy.plot as vp
-
-#import bimpy #
-from ShapeAnalysis import ShapeAnalysis
-
-"""
-class myVisPyWindow(QtWidgets.QWidget):
-	def __init__(self):
-		super(myVisPyWindow, self).__init__()
-
-		self.sliceLinesList = []
-
-	def buildVisPyInterface(self):
-
-		# vispy
-		#canvas = vispy.app.Canvas()
-		fig = vp.Fig(size=(800, 600))
-
-		data = np.random.rand(100, 2)
-		self.linePlotWidget = fig[0, 0] # this creates a PlotWidget
-		self.linePlot = self.linePlotWidget.plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
-		#self.linePlot = fig[0, 0].plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
-
-		self.myHBoxLayout = QtWidgets.QHBoxLayout(self)
-
-		self.myHBoxLayout.addWidget(QtWidgets.QPushButton('A Button'))
-		self.myHBoxLayout.addWidget(fig.native)
-
-		self.show()
-
-		print('buildVisPyInterface() done')
-"""
-
-class myPyQtGraphWidget(QtWidgets.QWidget):
-	"""
-	Display shape anaysis plugin window with 4 plots. 1-3 are for line shapes, 4 is for polygon (rectangle) shapes
-		1) Line intensity profile + gaussian fit + heuristic fit.
-			This is updated in real time while user drags a line shape
-		2) Plot of calculated diameter (y) for each slice/frame in the image
-		3) 'Kymograph' image plot of line intensity profile (y) versus each slice/frame in the image
-		4) The mean intensity in each polygon/ractangle shape (y) versus each  slice/frame in the image
-	"""
-	def __init__(self):
-		super(myPyQtGraphWidget, self).__init__()
-
-		self.sliceLinesList = []
-
-		self.initUI()
-
-	def initUI(self):
-		# horizontal layout to hold
-		# | vertical layout with qt widgets | vertical layout with pyqtgraph plots |
-		self.setWindowTitle('Shape Analysis Widget')
-
-		self.myHBoxLayout = QtWidgets.QHBoxLayout(self)
-
-		# vertical layout with qt widgets
-		leftVBoxLayout = QtWidgets.QVBoxLayout(self)
-		self.myHBoxLayout.addLayout(leftVBoxLayout)
-
-		leftVBoxLayout.addWidget(QtWidgets.QPushButton('My Button'))
-		#todo: derive QTreeView class and make it send/receive events on shape changes
-		leftVBoxLayout.addWidget(QtWidgets.QTreeView())
-
-
-		# vertical layout with pyqtgraph plote (eventually vispy)
-		rightVBoxLayout = QtWidgets.QVBoxLayout(self)
-		self.myHBoxLayout.addLayout(rightVBoxLayout)
-
-		#
-		# 1) line intensity profile (white), gaussuian fit (red) , heuroistic fit (blue)
-		pgRow = 0
-		self.lineIntensityWindow = pg.plot([], [], row=pgRow, col=0)
-		self.lineIntensityWindow.setLabel('left', 'Intensity', units='')
-		self.lineIntensityWindow.setLabel('bottom', 'Line Profile', units='')
-		self.lineIntensityPlot = self.lineIntensityWindow.plot([], [], pen=pg.mkPen('w', width=3),
-			row=0, col=0)
-		self.lineItensityFit1 = self.lineIntensityWindow.plot([], [], pen=pg.mkPen('r', width=3),
-			row=0, col=0)
-		self.lineItensityFit2 = self.lineIntensityWindow.plot([], [], pen=pg.mkPen('b', symbol='.', symbolSize=10, width=5),
-			row=0, col=0)
-		rightVBoxLayout.addWidget(self.lineIntensityWindow)
-
-		#
-		# (2) diameter for each slice
-		pgRow += 1
-		self.diameterWindow = pg.plot([], [], row=pgRow, col=0)
-		self.diameterWindow.setLabel('left', 'Diameter', units='')
-
-		sliceLine = pg.InfiniteLine(pos=0, angle=90)
-		self.sliceLinesList.append(sliceLine) # keep a list of vertical slice lines so we can update all at once
-		self.diameterWindow.addItem(sliceLine)
-		#
-		self.diameterPlot = self.diameterWindow.plot(name='lineintensitydiameter')
-
-		rightVBoxLayout.addWidget(self.diameterWindow)
-
-		#
-		# (3) kymograph image of line intensity (y) for each slice (x)
-		pgRow += 1
-		self.kymographWindow = pg.plot([], [], row=pgRow, col=0)
-		self.kymographWindow.setLabel('left', 'Line Intensity Profile', units='')
-
-		self.img = pg.ImageItem()
-		self.kymographWindow.addItem(self.img)
-
-		sliceLine = pg.InfiniteLine(pos=0, angle=90)
-		self.sliceLinesList.append(sliceLine) # keep a list of vertical slice lines so we can update all at once
-		self.kymographWindow.addItem(sliceLine)
-
-		rightVBoxLayout.addWidget(self.kymographWindow)
-
-		#
-		# (4) intensity of polygon for each slice
-		pgRow += 1
-		self.polygonPlotWindow = pg.plot([], [], row=pgRow, col=0)
-		self.polygonPlotWindow.setLabel('left', 'Mean Polygon Intensity') #, units='A)
-		self.polygonPlotWindow.setLabel('bottom', 'Slices') #, units='s')
-
-		sliceLine = pg.InfiniteLine(pos=0, angle=90)
-		self.sliceLinesList.append(sliceLine) # keep a list of vertical slice lines so we can update all at once
-		self.polygonPlotWindow.addItem(sliceLine)
-		# the selected shapes mean (through all slices)
-		self.selectedPolygonMeanPlot = self.polygonPlotWindow.plot(symbolSize=3, name='analysisPolygonMean')
-
-		# all polygon mean across all shapes/rois
-		self.polygonMeanListPlot = []
-
-		rightVBoxLayout.addWidget(self.polygonPlotWindow)
-
-		# qt, show the window
-		self.show()
-
-	def polygon_add(self):
-		""" Add a polygon to the list"""
-
-	def polygon_remove(self):
-		""" Remove a polygon from the list
-		"""
-
-	def polygon_select(self):
-		""" Select a polygon in the list
-		"""
-
-	def polygon_update(self):
-		""" Update a polygon
-		"""
-
-	def updateLinePlot(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan):
-		"""
-		Update the line intensity profile plot with current (real time as user drags information)
-
-		All parameters represent the current line intensity profile and its analysis
-		as the user drags the line around and when slices/images are scrolled
-
-		Parameters:
-			x: slices, usually 0..n-1, where n is the number of slices/images
-			oneProfile: ndarray of pixel intensity along the line. Number of points gives us length of line
-			fit: ndarray containing gaussian fit along the line profile (len is same as oneProfile)
-			left_idx, right_idx: scalar that gives us x position of a heuristic diameter fit
-		"""
-		if (oneProfile is not None):
-			print('oneProfile.shape', oneProfile.shape)
-			print('x.shape', x.shape)
-			self.lineIntensityPlot.setData(x,oneProfile)
-			self.lineIntensityPlot.update()
-
-		if (fit is not None):
-			self.lineItensityFit1.setData(x, fit) # gaussian
-
-		if (oneProfile is not None and not np.isnan(left_idx) and not np.isnan(right_idx)):
-			left_y = oneProfile[left_idx]
-			# cludge because left/right threshold detection has different y ...
-			#right_y = oneProfile[right_idx]
-			right_y = left_y
-			xPnt = [left_idx, right_idx]
-			yPnt = [left_y, right_y]
-			self.lineItensityFit2.setData(xPnt, yPnt) # heuristic
-
-	def updateDiameter(self, x, y):
-		"""
-		Update the diameter (y) versus slice (x) plot.
-
-		Parameters:
-			(x,y) are new diameter (y) and slice number (x)
-
-		Not real time, called after analysis for entire stack
-
-		todo: we do not need to know 'x' each time, assuming self is for one image
-				calculate self.x in constructor __init__
-		"""
-		self.diameterPlot.setData(x, y, connect='finite')
-
-	def updateKymograph(self, kymographData):
-		"""
-		Update the kymograph image of a line profile (y) through all slices (x)
-
-		Parameters:
-			kymographData: x/y image data with each line profile (y) across all images/slices in image
-
-		Not real time, called after analysis for entire stack
-		"""
-		self.img.setImage(kymographData)
-
-	def updatePolygons(self, x, selectedMean):
-		"""
-		Update the one selected polygon in white
-		"""
-		self.selectedPolygonMeanPlot.setData(x, selectedMean)
-
-	def updateVerticalSliceLines(self, sliceNum):
-		"""
-		Set vertical line indicating current slice
-
-		We keep a self.sliceLinesList list of all of them (in plots #2, #3, and #4)
-		"""
-		for line in self.sliceLinesList:
-			line.setValue(sliceNum)
+from ShapeAnalysis import ShapeAnalysis # backend analysis
+from myPyQtGraphWidget import myPyQtGraphWidget
 
 
 class ShapeAnalysisPlugin:
@@ -270,22 +51,19 @@ class ShapeAnalysisPlugin:
 
 	uses ShapeAnalysis for back end analysis
 	"""
-	#def __init__(self, napariViewer, path=None, myStack=None):
-	#def __init__(self, napariViewer, imageLayer=None, imagePath=None):
+
 	def __init__(self, imagePath=None):
 		"""
-		napariViewer: existing napari viewer
-		imageLayer: napari image layer to use as image
-			e.g. imageLayer.data
+		Parameters:
+			imagePath : full path to .tif file
 
 		Assuming:
 			imageLayer.data is (slices, rows, col)
 		"""
 
-		self.myPyQtGraphWidget =  myPyQtGraphWidget()
+		self.path = imagePath
 
-		# start pulled from main
-		title = ''
+		title = '' # window title
 		if imagePath is not None:
 			title = os.path.basename(imagePath)
 
@@ -299,24 +77,25 @@ class ShapeAnalysisPlugin:
 			path = path,
 			colormap=colormap,
 			scale=scale)
-		# end pulled from main
 
 		self.sliceNum = 0
 
-		#self.napariViewer = napariViewer
-		#self.myImageLayer = imageLayer
-		self.path = imagePath
-
 		self.filterImage() # filter the raw image for analysis
 
+		# analysis back-end to calculate diameter of lines and mean intensity of rectangles
+		# this uses multiprocessing
 		self.analysis = ShapeAnalysis(self.imageData) # self.imageData is a property
 
+		#
 		# make an empty shape layer
 		self.shapeLayer = self.napariViewer.add_shapes(
 			name=self.myImageLayer.name + '_shapes',
 		)
 		self.shapeLayer.mode = 'select' #'select'
-		self.shapeLayer.metadata = []
+		self.shapeLayer.metadata = [] # we need to append/pop from this as we create/delete shapes
+
+		# instantiate the main window to hold all shape analysis plots
+		self.myPyQtGraphWidget =  myPyQtGraphWidget(self.shapeLayer)
 
 		"""
 		# not sure what these were doing ?
@@ -332,16 +111,10 @@ class ShapeAnalysisPlugin:
 		# callback for user changing slices
 		self.napariViewer.dims.events.axis.connect(self.my_update_slider)
 
-		self.mouseBindings() # map key strokes to funciton calls
+		self.mouseBindings() # map key strokes to function calls
 		self.keyboardBindings() # map mouse down/drag to function calls
 
-		#todo: depreciate this
-		# build second window to show results of shape analysis
-		self.buildPyQtGraphInterface()
-
-		#self.buildVisPyInterface()
-		#self.myVisPyWindow = myVisPyWindow()
-
+		# load any analysis files for this .tif file
 		self.load()
 
 	def mouseBindings(self):
@@ -365,31 +138,36 @@ class ShapeAnalysisPlugin:
 				yield
 
 	def keyboardBindings(self):
-		""" set up keyboard callbacks """
+		"""
+		set up keyboard callbacks
+
+		todo: here, we bind to the shape layer, we may want to bind to the viewer with:
+		@viewer.bind_key('m')
+		"""
 
 		@self.shapeLayer.bind_key('h', overwrite=True)
 		def shape_user_keyboard_h(layer):
 			""" print help """
-			print('=== bShapeAnalysisWidget Help')
-			print('l: Create new line shape')
-			print('r: Create new rectangle shape')
-			print('Delete: Delete selected shape')
-			print('u: Update analysis on selected shape')
+			print('=== ShapeAnalysisWidget Help')
+			print('l:               Create new line shape')
+			print('r:               Create new rectangle shape')
+			print('Delete:          Delete selected shape')
+			print('u:               Update analysis on selected shape')
 			print('Command+Shift+L: Load h5f file (prompt user for file)')
-			print('Command+l: Load default h5f file (each .tif has corresponding h5f file)')
-			print('Command+s: Save default h5f file (each .tif has corresponding h5f file)')
+			print('Command+l:       Load default h5f file (each .tif has corresponding h5f file)')
+			print('Command+s:       Save default h5f file (each .tif has corresponding h5f file)')
 
 		@self.shapeLayer.bind_key('l', overwrite=True)
 		def shape_user_keyboard_l(layer):
-			""" create/add new line shape, user should not use napari icon to create shape """
+			""" create/add a new line shape, user should not use napari icon to create shape """
 			print('=== shape_user_keyboard_l() layer:', layer)
-			self.addNewLine()
+			self.addNewDefaultLine()
 
 		@self.shapeLayer.bind_key('r', overwrite=True)
 		def shape_user_keyboard_r(layer):
 			""" create/add new rectangle shape, user should not use napari icon to create shape """
 			print('=== shape_user_keyboard_r() layer:', layer)
-			self.addNewRectangle()
+			self.addNewDefaultRectangle()
 
 		@self.shapeLayer.bind_key('Backspace', overwrite=True)
 		def shape_user_keyboard_Backspace(layer):
@@ -397,29 +175,11 @@ class ShapeAnalysisPlugin:
 			print('=== shape_user_keyboard_Backspace() layer:', layer)
 			self._deleteShape()
 
-		@self.napariViewer.bind_key('d')
-		def user_keyboard_d(viewer):
-			""" load default shapes """
-			self.defaultShapes()
-
 		@self.napariViewer.bind_key('u')
-		def user_keyboard_u(viewer):
-			""" update analysis """
+		def user_keyboard_a(viewer):
+			""" analyze selected shape """
 			print('=== user_keyboard_u')
 			self.updateAnalysis()
-
-		'''
-		@self.napariViewer.bind_key('n')
-		def user_keyboar_n(viewer):
-			""" spawn a new shape analysis plugin? """
-			print('=== user_keyboard_n')
-			# viewer.active_layer
-			#print('viewer.layers:', viewer.layers)
-			for layer in self.napariViewer.layers:
-				print('type(layer).__name__:', type(layer).__name__)
-				print('   layer.name:', layer.name)
-				print('   layer.selected:', layer.selected)
-		'''
 
 		@self.napariViewer.bind_key('Control-Shift-l')
 		def loadOtherFile(viewer):
@@ -438,50 +198,14 @@ class ShapeAnalysisPlugin:
 
 	def filterImage(self):
 		""" not working, just playing around """
-		print('filterImage() calculating the difference for 3d image:', self.myImageLayer.data.shape)
+		print('filterImage() is creating gaussian filtered image:', self.myImageLayer.data.shape)
 		startTime = time.time()
 		self.filtered = scipy.ndimage.gaussian_filter(self.myImageLayer.data, sigma=1)
-		#self.filtered = scipy.ndimage.median_filter(self.myImageLayer.data, size=3)
-
-		"""
-		print('   self.myImageLayer.data.dtype:', self.myImageLayer.data.dtype)
-		print('   self.filtered.dtype:', self.filtered.dtype)
-		self.difference = None
-		"""
-
-		"""
-		self.difference = np.ndarray(shape=self.filtered.shape, dtype=np.int16) #np.ndarray(self.filtered.shape)
-		for idx, slice in enumerate(range(self.difference.shape[0])):
-			if idx>3:
-				self.difference[idx,:,:] = self.filtered[idx,:,:] - self.filtered[idx-4,:,:]
-			print('   self.difference.dtype:', self.difference.dtype)
-		"""
-
 		stopTime = time.time()
 		print('   took', round(stopTime-startTime,2), 'seconds')
 
-		"""
-		# append image to napari
-		self.differenceImage = self.napariViewer.add_image(
-			data = self.difference if self.difference is not None else self.filtered,
-			name=self.myImageLayer.name + '_diff',
-		)
-		print('   done')
-		"""
-
-	'''
-	def _defaultShapeDict(self):
-		shapeDict = {
-			'shape_type': 'line',
-			'edge_width': 5,
-			'opacity': 0.5,
-			'data': np.array([[20,20], [100,100]])
-		}
-		return shapeDict.copy()
-	'''
-
 	def _deleteShape(self):
-		""" Delete selected shape, from napari and from pyqtgraph"""
+		""" Delete selected shape, from napari and from myPyQtGraphWidget """
 
 		shapeType, index, data = self._getSelectedShape()
 
@@ -492,43 +216,21 @@ class ShapeAnalysisPlugin:
 
 		# (1)
 		if shapeType == 'rectangle':
-			# we can't use index as it includes all shapes, we need index into rectangle to remove?
-			rectangleIndex = self._getRectangleIndex(index)
-			# before we delete, clear the plot
-			self.polygonMeanListPlot[rectangleIndex].setData([], [], connect='finite')
-			# remove the plot
-			self.polygonMeanListPlot.pop(rectangleIndex) # remove from self.polygonMeanListPlot
-
+			self.myPyQtGraphWidget.shape_delete(index)
+		
+		# delete from napari
 		# order matters, this has to be after (1) above
 		self.shapeLayer.remove_selected() # remove from napari
+		# we are managing metadata list (append on new shape, pop on delete)
+		self.shapeLayer.metadata.pop(index)
 
-		# todo: this is not updating correctly, it is not removing the newly deleted rectangle analysis
+		# update plots
 		self.updatePlots() #refresh plots
-
-	def _getRectangleIndex(self, shapeIndex):
-		"""
-		Given the absolute index of a shape, return the index based on number of rectangles
-
-		Parameters:
-			shapeIndex: absolute shape index
-		"""
-		theRectangleIndex = None
-		rectangleIdx = 0
-		for idx, shapeType in enumerate(self.shapeLayer.shape_types):
-			print('looking for rectangle at shapeIndex:', shapeIndex, 'idx:', idx, 'shapeType:', shapeType)
-			if shapeType == 'rectangle':
-				if idx == shapeIndex:
-					theRectangleIndex = rectangleIdx
-					break
-				rectangleIdx += 1
-		print('_getRectangleIndex() returning theRectangleIndex:', theRectangleIndex)
-		return theRectangleIndex
-
+		self.myPyQtGraphWidget.plotAllPolygon(None)
+		
 	def _addNewShape(self, shapeDict):
-		""" Add a new shape
+		""" Add a new shape """
 
-		todo: write function to return well defined shapeDict
-		"""
 		self.shapeLayer.add(
 			data = shapeDict['data'],
 			shape_type = shapeDict['shape_type'],
@@ -536,6 +238,7 @@ class ShapeAnalysisPlugin:
 			edge_color = 'coral',
 			face_color = 'royalblue',
 			opacity = shapeDict['opacity'])
+
 		metaDataDict = {
 			'lineDiameter': np.zeros((0)),
 			'lineKymograph': np.zeros((1,1)),
@@ -543,21 +246,31 @@ class ShapeAnalysisPlugin:
 			'polygonMax': np.zeros((0)),
 			'polygonMean': np.zeros((0)),
 		}
+
 		self.shapeLayer.metadata.append(metaDataDict)
 
-	def addNewLine(self):
+	def addNewDefaultLine(self):
 		"""
 		Add a new line shape, in response to user keyboard 'l'
 		"""
+		src = [20,20]
+		dst = [100,100]
 		shapeDict = {
 			'shape_type': 'line',
 			'edge_width': 5,
 			'opacity': 0.5,
-			'data': np.array([[20,20], [100,100]])
+			'data': np.array([src, dst])
 		}
 		self._addNewShape(shapeDict)
 
-	def addNewRectangle(self):
+		# analyze one line
+		sliceNum = self.sliceNum
+		x, oneProfile, fit, fwhm, leftIdx, rightIdx = self.analysis.lineProfile(sliceNum, src, dst, linewidth=1, doFit=True)
+
+		# update plot
+		self.myPyQtGraphWidget.updateLinePlot(x, oneProfile, fit=fit, leftIdx=leftIdx, rightIdx=rightIdx)
+
+	def addNewDefaultRectangle(self):
 		"""
 		Add a new rectangle shape, in response to user keyboard 'r'
 		"""
@@ -568,31 +281,6 @@ class ShapeAnalysisPlugin:
 			'data': np.array([[50, 50], [50, 80], [80, 80], [80, 50]])
 		}
 		self._addNewShape(shapeDict)
-
-	def defaultShapes(self):
-		"""
-		Was using this for debugging so we had some shapes on first run
-		"""
-		self.addNewLine()
-		self.addNewRectangle()
-		'''
-		# create default shapes
-		shapeTypes = ['line', 'line', 'rectangle']
-		line1 = np.array([[11, 13], [111, 113]])
-		line2 = np.array([[200, 200], [400, 300]])
-		rect1 = np.array([[400, 400], [400, 600], [600, 600], [600, 400]])
-		lines = [line1, line2, rect1]
-		opacity = (0.5, 0.5, 0.2)#self.shapeLayer = self.napariViewer.add_shapes(
-		edge_width = (5, 5, 3)
-		self.shapeLayer.add(
-			lines,
-			shape_type=shapeTypes,
-			edge_width = edge_width,
-			edge_color = 'coral',
-			face_color = 'royalblue',
-			opacity = opacity)
-		'''
-
 
 	def _getSavePath(self):
 		path, filename = os.path.split(self.path)
@@ -673,7 +361,7 @@ class ShapeAnalysisPlugin:
 			linesList = []
 			#metadataList = [] # metadata is a special case
 			for name in f:
-				print('loading name:', name)
+				print('   loading name:', name)
 				json_str = f[name].attrs['shapeDict']
 				json_dict = json.loads(json_str) # convert from string to dict
 				'''
@@ -689,10 +377,6 @@ class ShapeAnalysisPlugin:
 				for name2 in f[name + '/metadata']:
 					#print('name2:', name2)
 					metadataDict[name2] = f[name + '/metadata' + '/' + name2][()]
-				'''
-				print('   data:', data)
-				print('   type(data)', type(data))
-				'''
 
 				linesList.append(data)
 				#metadataList.append(metadataDict) # metadata is a special case
@@ -710,16 +394,8 @@ class ShapeAnalysisPlugin:
 
 				shapeList.append(shapeDict)
 
-		'''
-		print('linesList:', linesList)
-		print('edge_color:', edge_color)
-		print('type(edge_color[0]):', type(edge_color[0]))
-
-		print('self.shapeLayer.metadata:', self.shapeLayer.metadata)
-		'''
-
 		# create a shape from what we loaded
-		print('=== Appending', len(linesList), 'loaded shapes to shapes layer')
+		print('   Appending', len(linesList), 'loaded shapes to shapes layer')
 
 		# metadata is a special case
 		#self.shapeLayer.metadata = metadataList
@@ -746,145 +422,8 @@ class ShapeAnalysisPlugin:
 
 		#self.updatePlots()
 
-	"""
-	def buildVisPyInterface(self):
-
-		# vispy
-		#canvas = vispy.app.Canvas()
-		fig = vp.Fig(size=(800, 600))
-
-		data = np.random.rand(100, 2)
-		'''
-		self.linePlotWidget = fig[0, 0] # this creates a PlotWidget
-		self.linePlot = self.linePlotWidget.plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
-		'''
-		self.linePlot = fig[0, 0].plot(data, title='Line Intensity', xlabel='Points', ylabel='Intensity')
-
-		# qt
-		w = QtWidgets.QMainWindow()
-		widget = QtWidgets.QWidget()
-		w.setCentralWidget(widget)
-		widget.setLayout(QtWidgets.QHBoxLayout())
-
-		widget.layout().addWidget(QtWidgets.QPushButton('A Button'))
-		widget.layout().addWidget(fig.native)
-		#widget.layout().addWidget(canvas.native)
-
-		w.show()
-		#widget.show()
-		#vispy.app.run() # this does not return?
-
-		print('buildVisPyInterface() done')
-	"""
-
-	def buildPyQtGraphInterface(self):
-		"""
-		Depreciated, use myPyQtGraphWidget instead
-		"""
-		#
-		# pyqt graph plots
-		self.pgWin = pg.GraphicsWindow(title="Shape Analysis Plugin") # creates a window
-		#self.pgWin = pg.QGraphicsLayoutWidget(title="Shape Analysis Plugin") # creates a window
-
-		pgRow = 0 # row of pyqtgraph
-
-		# keep a list of vertical lines to indicate slice in each plot
-		self.sliceLinesList = []
-
-		#
-		# (1) line intensity profile for one slice
-		self.lineIntensityPlotItem = self.pgWin.addPlot(title="Line Intensity Profile", row=pgRow, col=0)
-		self.lineIntensityPlotItem.setLabel('left', 'Intensity', units='')
-		self.lineIntensityPlotItem.setLabel('bottom', 'Line Profile', units='')
-		self.lineProfilePlot = self.lineIntensityPlotItem.plot(name='lineIntensityProfile')
-		self.lineProfilePlot.setShadowPen(pg.mkPen((255,255,255), width=2, cosmetic=True))
-		# fit
-		x = y = []
-		# gaussian
-		self.fitPlot = self.lineIntensityPlotItem.plot(x, y, pen=pg.mkPen('r', width=3), name='fit')
-		# heuristic
-		self.fitPlot2 = self.lineIntensityPlotItem.plot(x, y, pen=pg.mkPen('b', symbol='.', symbolSize=10, width=5), name='fitPoints')
-
-		pgRow += 1
-
-		#
-		# (2) diameter for each slice
-		self.analysisPlotItem = self.pgWin.addPlot(title='', row=pgRow, col=0)
-		self.analysisPlotItem.setLabel('left', 'Diameter', units='')
-		#self.analysisPlotItem.setLabel('bottom', 'Slices') #, units='s')
-		# vertical line showing slice number selection in napari viewer
-		#self.sliceLineDiameter = pg.InfiniteLine(pos=0, angle=90)
-		sliceLine = pg.InfiniteLine(pos=0, angle=90)
-		self.sliceLinesList.append(sliceLine)
-		self.analysisPlotItem.addItem(sliceLine)
-		#
-		self.analysisDiameter = self.analysisPlotItem.plot(name='lineintensitydiameter')
-
-		pgRow += 1
-
-		#
-		# (3) image with slices on x, and intensity of each line profile on y
-		self.stackLineIntensityImage = self.pgWin.addViewBox(row=pgRow, col=0)
-		# setLabel does not work for view box?
-		#self.stackLineIntensityImage.setLabel('left', 'Line Intensity Profile') #, units='A')
-		#self.stackLineIntensityImage.setLabel('bottom', 'Slices') #, units='s')
-
-		self.img = pg.ImageItem()
-		self.stackLineIntensityImage.addItem(self.img)
-
-		# add a vertical line for current slice (over image)
-		#self.sliceLineProfileImage = pg.InfiniteLine(pos=0, angle=90)
-		#self.stackLineIntensityImage.addItem(self.sliceLineProfileImage)
-		sliceLine = pg.InfiniteLine(pos=0, angle=90)
-		self.sliceLinesList.append(sliceLine)
-		self.stackLineIntensityImage.addItem(sliceLine)
-
-		pgRow += 1
-
-		# (4) intensity of polygon for each slice
-		self.polygonPlotItem = self.pgWin.addPlot(title='', row=pgRow, col=0)
-		self.polygonPlotItem.setLabel('left', 'Mean Polygon Intensity') #, units='A)
-		self.polygonPlotItem.setLabel('bottom', 'Slices') #, units='s')
-		# vertical line showing slice number selection in napari viewer
-		#self.verticalSliceLine3 = pg.InfiniteLine(pos=0, angle=90)
-		#self.polygonPlotItem.addItem(self.verticalSliceLine3)
-		sliceLine = pg.InfiniteLine(pos=0, angle=90)
-		self.sliceLinesList.append(sliceLine)
-		self.polygonPlotItem.addItem(sliceLine)
-		#
-		self.analysisPolygonMean = self.polygonPlotItem.plot(symbolSize=3, name='analysisPolygonMean')
-		#self.analysisPolygonMin = self.polygonPlotItem.plot(name='analysisPolygonMin')
-		#self.analysisPolygonMax = self.polygonPlotItem.plot(name='analysisPolygonMax')
-
-		# all polygon mean across all shapes/rois
-		self.polygonMeanListPlot = []
-		#self.polygonMeanListPlot.append(self.polygonPlotItem.plot(name='polygonMeanListPlot'))
-
-		# (5) tree view of all shapes
-		'''
-		w = pg.TreeWidget()
-		w.setColumnCount(2)
-		w.show()
-		w.resize(500,500)
-		w.setWindowTitle('pyqtgraph example: TreeWidget')
-
-		i1  = QtGui.QTreeWidgetItem(["Item 1"])
-		i2  = QtGui.QTreeWidgetItem(["Item 2"])
-		i3  = QtGui.QTreeWidgetItem(["Item 3"])
-		w.addTopLevelItem(i1)
-		w.addTopLevelItem(i2)
-		w.addTopLevelItem(i3)
-
-		# does not work
-		#self.pgWin.addItems(w)
-		'''
-
-	'''
-	def layerChangeEvent(self, event):
-		""" todo: not sure what the purpose of this was? """
-		print(time.time(), 'layerChangeEvent() event.type:', event.type)
-		respondToTheseEvents = ['edge_width']
-	'''
+		# plot all polygon analysis
+		self.myPyQtGraphWidget.plotAllPolygon(None)
 
 	@property
 	def imageData(self):
@@ -905,13 +444,16 @@ class ShapeAnalysisPlugin:
 		event is type vispy.app.canvas.MouseEvent
 		see: http://api.vispy.org/en/v0.1.0-0/event.html
 		"""
-		print('myMouseDown_Shape()', layer, event.type)
-
+		
 		type, index, dict = self._getSelectedShape()
+
+		'''
+		print('ShapeAnalysisPlugin.myMouseDown_Shape()', layer, event.type)
 		print('   type:', type)
 		print('   index:', index)
 		print('   dict:', dict) # (type, index, dict)
-
+		'''
+		
 		self.updatePlots()
 
 	def lineShapeChange_callback(self, layer, event):
@@ -924,24 +466,14 @@ class ShapeAnalysisPlugin:
 
 		get one selected line from list(self.shapeLayer.selected_data)
 		"""
-		# loop through all lines?
-		#for data in self.shapeLayer.data:
+
 		shapeType, index, data = self._getSelectedShape()
 		if shapeType == 'line':
-			#src = data[0]
-			#dst = data[1]
-			#self.updateLines(self.sliceNum, src, dst)
 			self.updateLines(self.sliceNum, data)
-		# turned this off, was too slow
-		# todo, just update and then plot polygon analysis for current slice
-		'''
-		if shapeType in ['rectangle', 'polygon']:
-			self.updatePolygon(self.sliceNum, data)
-		'''
 
 	def _getSelectedShape(self):
 		"""
-		return the selected shape with a tuple (shapeType, data)
+		Return the selected shape with a tuple (shapeType, index, data)
 			shapeType: ('line', 'polygon')
 			index:
 			data: the data from a shape layer, generally the coordinates of a shape
@@ -950,14 +482,9 @@ class ShapeAnalysisPlugin:
 		"""
 		# selected_data is a list of int with the index into self.shapeLayer.data of all selected shapes
 		selectedDataList = self.shapeLayer.selected_data
-		#print('selectedDataList:', selectedDataList)
 		if len(selectedDataList) > 0:
 			index = selectedDataList[0] # just the first selected shape
 			shapeType = self.shapeLayer.shape_types[index]
-			'''
-			print('shapeType:', shapeType) #('line', 'rectangle', 'polygon')
-			print('   self.shapeLayer.data[index]:', self.shapeLayer.data[index])
-			'''
 			return shapeType, index, self.shapeLayer.data[index]
 		else:
 			return (None, None, None)
@@ -966,67 +493,39 @@ class ShapeAnalysisPlugin:
 		"""
 		Respond to user changing slice/image slider
 		"""
-		#print('my_update_slider() event:', event)
 		if (event.axis == 0):
 			# todo: not sure if this if foolproof
 			self.sliceNum = self.napariViewer.dims.indices[0]
 
-			self.updateVerticalSliceLines(self.sliceNum)
-
 			self.myPyQtGraphWidget.updateVerticalSliceLines(self.sliceNum)
 
-			# todo: this does not feal right ... fix this !!!
+			# todo: this does not feel right ... fix this !!!
 			shapeType, index, data = self._getSelectedShape()
 			if shapeType == 'line':
-				#src = data[0]
-				#dst = data[1]
-				#self.updateLines(self.sliceNum, src, dst)
 				self.updateLines(self.sliceNum, data)
-			'''
-			elif shapeType in ['rectangle', 'polygon']:
-				self.updatePolygon(self.sliceNum, data)
-			'''
-
-	def updateAnalysis(self):
-		shapeType, index, data = self._getSelectedShape()
-		if shapeType == 'rectangle':
-			theMin, theMax, theMean = self.analysis.stackPolygonAnalysis(data)
-			if theMin is None:
-				return
 
 	def updateStackPolygon(self, index=None):
 		"""
 		data is a list of points specifying vertices of a polygon
 		a rectangle is just a polygon with 4 evenly spaces vertices
 		"""
-		print('bShapeAnalysisWidget.updateStackPolygon() index:', index)
+		print('bShapeAnalysisPlugin.updateStackPolygon() index:', index)
 
 		shapeType, index, data = self._getSelectedShape()
 
+		# back-end analysis
 		theMin, theMax, theMean = self.analysis.stackPolygonAnalysis(data)
 
 		if theMin is None:
 			return
 
 		# store in shape metadata
-		#print('self.shapeLayer.metadata:', self.shapeLayer.metadata)
 		self.shapeLayer.metadata[index]['polygonMean'] = theMean
 
 		# plot
 		self.updatePlots()
-		'''
-		if shapeType == 'line':
-			self.updateStackLinePlot(index)
-		elif shapeType == 'rectangle':
-			self.updateStackPolygonPlot(index=index)
-		'''
 
-		'''
-		xPlot = np.asarray([slice for slice in range(len(theMean))])
-		self.analysisPolygonMean.setData(xPlot, theMean, connect='finite') # connect 'finite' will make nan(s) disjoint
-		'''
-
-	def updatePlots(self, index=None):
+	def updatePlots(self):
 		"""
 		update plots based on current selection
 
@@ -1035,7 +534,7 @@ class ShapeAnalysisPlugin:
 		This needs to update (1) a line based on selection and (2) all rectangle shapes/roi, regardless of selection
 		"""
 
-		print('updatePlots() index:', index)
+		print('bShapeAnalysisPlugin.updatePlots()')
 
 		shapeType, index, data = self._getSelectedShape()
 
@@ -1044,75 +543,14 @@ class ShapeAnalysisPlugin:
 		print('   index:', index)
 		print('   data:', data)
 
-		'''
-		if index is None:
-			# no shape selection
-			return
-		'''
-
-		# plot
-		if shapeType == 'line':
-			print('   updating line at index:', index)
-			# diameter
-			lineDiameter = self.shapeLayer.metadata[index]['lineDiameter']
-			xPlot = np.asarray([slice for slice in range(len(lineDiameter))])
-			self.analysisDiameter.setData(xPlot, lineDiameter, connect='finite')
-			# kymograph
-			lineKymograph = self.shapeLayer.metadata[index]['lineKymograph']
-			self.img.setImage(lineKymograph)
-
-			# new
-			self.myPyQtGraphWidget.updateDiameter(xPlot, lineDiameter)
-			self.myPyQtGraphWidget.updateKymograph(lineKymograph)
-
-		elif shapeType == 'rectangle':
-			#
-			# plot all rectangle polygonMean
-			#
-			print('   updating rectangle at index:', index)
-			polygonMean = self.shapeLayer.metadata[index]['polygonMean']
-
-			# normalize to first few points
-			tmpMean = np.nanmean(polygonMean[0:10])
-			polygonMean = polygonMean / tmpMean * 100
-			polygonMean += index * 20
-
-			xPlot = np.asarray([slice for slice in range(len(polygonMean))])
-			self.analysisPolygonMean.setData(xPlot, polygonMean, connect='finite') # connect 'finite' will make nan(s) disjoint
-
-			# new, selected ractanle
-			self.myPyQtGraphWidget.updatePolygons(xPlot, polygonMean)
-
-		# first clear all
-		for idx in range(len(self.polygonMeanListPlot)):
-			self.polygonMeanListPlot[idx].setData([], [], connect='finite')
-		# then replot
-		numRectangle = 0 # keep track of rectangle number 0, 1, 2, ... to index into self.polygonMeanListPlot
-		for idx, type in enumerate(self.shapeLayer.shape_types):
-			if type == 'rectangle':
-				#numRectangle += 1
-				if len(self.polygonMeanListPlot)-1 < numRectangle:
-					self.polygonMeanListPlot.append(self.polygonPlotItem.plot(pen=(255,0,0), name='polygonMeanListPlot'+str(idx)))
-				if idx == index:
-					# skip the one that is selected, plotted above in white
-					continue
-				print('   appending rectangle for shape idx:', idx)
-				polygonMean = self.shapeLayer.metadata[idx]['polygonMean']
-				xPlot = np.asarray([slice for slice in range(len(polygonMean))])
-				#print(idx, 'polygonMean.shape:', polygonMean.shape)
-				if len(polygonMean)<1:
-					continue
-				# normalize to first few points
-				tmpMean = np.nanmean(polygonMean[0:10])
-				polygonMean = polygonMean / tmpMean * 100
-				polygonMean += idx * 20
-
-				print('   DEBUG: idx:', idx, 'len(self.polygonMeanListPlot):', len(self.polygonMeanListPlot))
-				self.polygonMeanListPlot[numRectangle].setData(xPlot, polygonMean, connect='finite')
-
-				numRectangle += 1
+		# in the end just use this
+		self.myPyQtGraphWidget.updateShapeSelection(index)
+		
 
 	def updateAnalysis(self):
+		"""
+		Update the analysis of the currently selected shape
+		"""
 		shapeType, index, data = self._getSelectedShape()
 		if index is None:
 			return
@@ -1120,7 +558,12 @@ class ShapeAnalysisPlugin:
 			self.updateStackLineProfile()
 		elif shapeType in ['rectangle', 'polygon']:
 			self.updateStackPolygon()
-
+		else:
+			print('updateAnalysis() unknown shape type:', shapeType)
+			return
+		# update plots
+		self.myPyQtGraphWidget.updateShapeSelection(index)
+		
 	def updateStackLineProfile(self):
 		"""
 		generate a line profile for each image in a stack/timeseries
@@ -1132,22 +575,12 @@ class ShapeAnalysisPlugin:
 		src = data[0]
 		dst = data[1]
 		print('updateStackLineProfile() src:', src, 'dst:', dst)
-		#x, self.lineProfileImage, self.FWHM = self.myStack.analysis.stackLineProfile(src, dst)
 		x, lineKymograph, lineDiameter = self.analysis.stackLineProfile(src, dst)
 
 		self.shapeLayer.metadata[index]['lineDiameter'] = lineDiameter
 		self.shapeLayer.metadata[index]['lineKymograph'] = lineKymograph
 
 		self.updatePlots()
-
-		'''
-		#
-		# update plots with new results
-		self.img.setImage(self.lineProfileImage)
-
-		xPlot = np.asarray([slice for slice in range(len(self.FWHM))])
-		self.analysisDiameter.setData(xPlot, self.FWHM, connect='finite')
-		'''
 
 	def updateVerticalSliceLines(self, sliceNum):
 		"""
@@ -1156,15 +589,6 @@ class ShapeAnalysisPlugin:
 		for line in self.sliceLinesList:
 			line.setValue(sliceNum)
 
-	def updatePolygon(self, sliceNum, data):
-		"""
-		data is a list of vertex points
-		"""
-		print('bShapeAnalysisWidget.updatePolygon() data:', data)
-		#theMin, theMax, theMean = self.myStack.analysis.polygonAnalysis(sliceNum, data)
-		theMin, theMax, theMean = self.analysis.polygonAnalysis(sliceNum, data)
-		print('   slice:', sliceNum, 'theMin:', theMin, 'theMax:', theMax, 'theMean:', theMean)
-
 	def updateLines(self, sliceNum, data):
 		"""
 		data: two points that make the line
@@ -1172,59 +596,10 @@ class ShapeAnalysisPlugin:
 		src = data[0]
 		dst = data[1]
 		print('bShapeAnalysisWidget.updateLines() sliceNum:', sliceNum, 'src:', src, 'dst:', dst)
-		#x, lineProfile, yFit, fwhm, leftIdx, rightIdx = self.myStack.analysis.lineProfile(sliceNum, src, dst, linewidth=1, doFit=True)
-		# this can fail
+		# this can fail ???
 		x, lineProfile, yFit, fwhm, leftIdx, rightIdx = self.analysis.lineProfile(sliceNum, src, dst, linewidth=1, doFit=True)
 
-		#x = [a for a in range(len(lineProfile))]
-		#yFit, fwhm, leftIdx, rightIdx = self.myStack.analysis.fitGaussian(x, lineProfile)
-
 		self.updateLineIntensityPlot(x, lineProfile, yFit, leftIdx, rightIdx)
-		#self.updateLineIntensityPlot2(x, lineProfile, yFit, leftIdx, rightIdx)
-
-	def updateLineIntensityPlot2(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan): #, ind_lambda):
-		print('updateLineIntensityPlot2()')
-		if (oneProfile is not None):
-			'''
-			# both oneProfile and x have shape of (n,), e.g. no specific column
-			# we need to reshape them into shape of (n,1)
-			oneProfile2 = np.reshape(oneProfile, (oneProfile.shape[0],1))
-			x2 = np.reshape(x, (x.shape[0],1))
-			# append columns, one after other
-			oneProfile2 = np.append(x2, oneProfile2, 1) # 1 is for columns
-			self.linePlot.set_data(oneProfile)
-			'''
-
-			# this works
-			'''
-			self.linePlot.set_data((x,oneProfile))
-			self.linePlot.update()
-			'''
-
-			# see vispy InfiniteLineVisual to draw slice line
-
-			data = np.random.rand(100,2) + 100
-			# todo: add a member function to myVisPyWindow
-			self.myVisPyWindow.linePlot.set_data(data)
-
-			# already called by set_data
-			#self.myVisPyWindow.linePlot.update()
-
-			self.myVisPyWindow.linePlotWidget.view.camera.set_range()
-			#self.myVisPyWindow.linePlot.view.camera.set_range()
-
-		if (fit is not None):
-			pass
-			#self.fitPlot.setData(x, fit) # gaussian
-		if (oneProfile is not None and not np.isnan(left_idx) and not np.isnan(right_idx)):
-			left_y = oneProfile[left_idx]
-			# cludge because left/right threshold detection has different y ...
-			#right_y = oneProfile[right_idx]
-			right_y = left_y
-			xPnt = [left_idx, right_idx]
-			yPnt = [left_y, right_y]
-			#print('plot_pg() xPnt:', xPnt, 'yPnt:', yPnt)
-			#self.fitPlot2.setData(xPnt, yPnt) # heuristic
 
 	def updateLineIntensityPlot(self, x, oneProfile, fit=None, left_idx=np.nan, right_idx=np.nan): #, ind_lambda):
 		"""
@@ -1236,25 +611,6 @@ class ShapeAnalysisPlugin:
 
 		# new
 		self.myPyQtGraphWidget.updateLinePlot(x, oneProfile, fit, left_idx, right_idx)
-
-		'''
-		print('updateLineIntensityPlot type(left_idx):', left_idx)
-		print('updateLineIntensityPlot type(right_idx):', right_idx)
-		'''
-		if (oneProfile is not None):
-			self.lineProfilePlot.setData(x, oneProfile)
-
-		if (fit is not None):
-			self.fitPlot.setData(x, fit) # gaussian
-		if (oneProfile is not None and not np.isnan(left_idx) and not np.isnan(right_idx)):
-			left_y = oneProfile[left_idx]
-			# cludge because left/right threshold detection has different y ...
-			#right_y = oneProfile[right_idx]
-			right_y = left_y
-			xPnt = [left_idx, right_idx]
-			yPnt = [left_y, right_y]
-			#print('plot_pg() xPnt:', xPnt, 'yPnt:', yPnt)
-			self.fitPlot2.setData(xPnt, yPnt) # heuristic
 
 if __name__ == '__main__':
 
@@ -1269,25 +625,5 @@ if __name__ == '__main__':
 		#path = '/Volumes/t3/20191105(Tie2Cre-GCaMP6f)/ISO_IN_500nM_8bit_cropped.tif'
 		#path = '/Volumes/t3/20191105(Tie2Cre-GCaMP6f)/ISO_IN_500nM_8bit.tif'
 
-		'''
-		filename = os.path.basename(path)
-		title = filename
-
-		viewer = napari.Viewer(title=title)
-
-		# add image as layer
-		colormap = 'green'
-		scale = (1,1,1) #(1,0.2,0.2)
-		myImageLayer = viewer.add_image(
-			#self.myStack.stack[0,:,:,:],
-			path = path,
-			colormap=colormap,
-			scale=scale)#,
-			#title=title)
-		'''
-
-		#tmp = myPyQtGraphWidget()
-
 		# run the plugin
-		#ShapeAnalysisPlugin(viewer, imageLayer=myImageLayer, imagePath=path)
 		ShapeAnalysisPlugin(imagePath=path)
