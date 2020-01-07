@@ -217,15 +217,22 @@ class ShapeAnalysisPlugin:
 		print('   shapeType:', shapeType)
 		print('   index:', index) # absolute shape index
 
+		if shapeType is None:
+			print('_deleteShape() did not find a shape selection?')
+			return
+
 		# (1)
 		if shapeType == 'rectangle':
 			self.myPyQtGraphWidget.shape_delete(index)
 
-		# delete from napari
-		# order matters, this has to be after (1) above
-		self.shapeLayer.remove_selected() # remove from napari
-		# we are managing metadata list (append on new shape, pop on delete)
-		self.shapeLayer.metadata.pop(index)
+		try:
+			# delete from napari
+			# order matters, this has to be after (1) above
+			self.shapeLayer.remove_selected() # remove from napari
+			# we are managing metadata list (append on new shape, pop on delete)
+			self.shapeLayer.metadata.pop(index)
+		except (IndexError) as e:
+			print('Exception in _deleteShape() e:', str(e))
 
 		# update plots
 		self.updatePlots(updatePolygons=True)
@@ -353,6 +360,11 @@ class ShapeAnalysisPlugin:
 		"""
 		h5File = self._getSavePath()
 		print('=== bShapeAnalysisWidget.load() file:', h5File)
+
+		if not os.path.isfile(h5File):
+			print('   file not found:', h5File)
+			return
+
 		shape_type = []
 		edge_width = []
 		edge_color = []

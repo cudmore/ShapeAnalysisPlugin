@@ -120,13 +120,17 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 			# we can't use index as it includes all shapes, we need index into rectangle to remove?
 			rectangleIndex = self._getRectangleIndex(index)
 			print('*** shape_delete() deleting rectangle at shape index', index, 'rectangleIndex', rectangleIndex)
-			# before we delete, clear the plot
-			self.polygonMeanListPlot[rectangleIndex].setData([], [], connect='finite')
-			# remove the plot
-			self.polygonMeanListPlot.pop(rectangleIndex) # remove from self.polygonMeanListPlot
 
-			# clear the white selection
-			self.selectedPolygonMeanPlot.setData([], [])
+			try:
+				# before we delete, clear the plot
+				self.polygonMeanListPlot[rectangleIndex].setData([], [], connect='finite')
+				# remove the plot
+				self.polygonMeanListPlot.pop(rectangleIndex) # remove from self.polygonMeanListPlot
+
+				# clear the white selection
+				self.selectedPolygonMeanPlot.setData([], [])
+			except (IndexError) as e:
+				print('Exception in shape_delete() e:', str(e))
 
 	def updateShapeSelection(self, index):
 		"""
@@ -152,20 +156,23 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 			self.selectedPolygonMeanPlot.setData([], [])
 			#self.plotAllPolygon(index)
 		elif type == 'rectangle':
-			polygonMean = self.shapeLayer.metadata[index]['polygonMean']
+			try:
+				polygonMean = self.shapeLayer.metadata[index]['polygonMean']
 
-			# normalize to first few points
-			tmpMean = np.nanmean(polygonMean[0:10])
-			polygonMean = polygonMean / tmpMean * 100
-			polygonMean += index * 20
+				# normalize to first few points
+				tmpMean = np.nanmean(polygonMean[0:10])
+				polygonMean = polygonMean / tmpMean * 100
+				polygonMean += index * 20
 
-			xPlot = np.asarray([slice for slice in range(len(polygonMean))])
+				xPlot = np.asarray([slice for slice in range(len(polygonMean))])
 
-			# the selection
-			self.selectedPolygonMeanPlot.setData(xPlot, polygonMean)
+				# the selection
+				self.selectedPolygonMeanPlot.setData(xPlot, polygonMean)
 
-			# all other polygons, will become slow when we have lots
-			self.plotAllPolygon(index)
+				# all other polygons, will become slow when we have lots
+				self.plotAllPolygon(index)
+			except (IndexError) as e:
+				print('exception in updateShapeSelection() e:', str(e))
 
 		else:
 			print('updateShapeSelection() unknown type:', type)
@@ -243,7 +250,7 @@ class myPyQtGraphWidget(QtWidgets.QWidget):
 				if len(self.polygonMeanListPlot) < rectangleIdx+1:
 					# append a new polygon ...
 					self.polygonMeanListPlot.append(self.polygonPlotWidget.plot(pen=(255,0,0), name='polygonMeanListPlot'+str(idx)))
-					print('   plotAllPolygon() appended rectangle for shape idx:', idx, numRectangle, len(self.polygonMeanListPlot))
+					print('   plotAllPolygon() appended rectangle for shape idx:', idx, rectangleIdx, len(self.polygonMeanListPlot))
 				self.polygonMeanListPlot[rectangleIdx].setData(xPlot, polygonMean, connect='finite')
 
 				rectangleIdx += 1
